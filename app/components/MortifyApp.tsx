@@ -52,54 +52,6 @@ const CHAR_DATA: Record<number, { name: string; verse: string; desc: string }> =
   9: { name: "Abraham", verse: 'Gen 13:9 — "You choose. If you go left, I\'ll go right."', desc: "The father of faith who let his nephew choose first, walked slowly into a promise he couldn't see, and trusted the voice that called him." },
 };
 
-// Wing labels: [wing-a description, wing-b description] matching VALID_WINGS order
-const WING_LABELS: Record<number, [string, string]> = {
-  1: ["I hold my convictions quietly — I process in silence more than I speak.", "I care about helping people live well — not just holding the line myself."],
-  2: ["I give because it's right — duty is as much a part of me as love.", "I want to be seen for what I give — the recognition matters as much as the act."],
-  3: ["I achieve partly to love well — I care deeply about the people I'm doing it for.", "There's a real self beneath the performance — and I want to find it."],
-  4: ["I want to be seen, not just known — my uniqueness should be visible.", "I go inward — I need to understand my own depths before I can offer them to anyone."],
-  5: ["My inner world is rich with feeling, not just thought — I long to be truly understood.", "I'm loyal beneath the solitude — understanding things is how I feel secure."],
-  6: ["When scared, I retreat into my mind — thinking feels safer than trusting.", "I cope by finding silver linings — I try to stay hopeful despite the fear underneath."],
-  7: ["There's loyalty beneath the energy — I care deeply about the people I travel with.", "I go after what I want with force — I don't just reframe difficulty, I push through it."],
-  8: ["I'm restless — I want to conquer and explore, not just protect and control.", "I'm powerful but patient — I don't need to show my strength to know I have it."],
-  9: ["I can show up with force when pushed — but peace is still where I want to be.", "I care about what's right — my desire for peace has a principled, idealistic edge."],
-};
-
-const Q1 = {
-  prompt: "When life gets hard, what happens inside you first?",
-  options: [
-    { label: "My mind starts working — I think, question, and try to prepare.", value: "head" as const },
-    { label: "I feel it — I want to connect, to matter, to be truly seen.", value: "heart" as const },
-    { label: "Something in me reacts — I push forward, push back, or go very still.", value: "gut" as const },
-  ],
-};
-
-const Q2: Record<"head" | "heart" | "gut", { prompt: string; options: { label: string; type: number }[] }> = {
-  head: {
-    prompt: "Your thinking is really trying to...",
-    options: [
-      { label: "Understand. You gather the full picture before you commit to anything.", type: 5 },
-      { label: "Stay safe. Your mind scans for what could go wrong and looks for solid ground.", type: 6 },
-      { label: "Stay open. You look for what's still possible and keep your options alive.", type: 7 },
-    ],
-  },
-  heart: {
-    prompt: "In relationships, what you most want is...",
-    options: [
-      { label: "To be genuinely needed — and to give in a way that really makes a difference.", type: 2 },
-      { label: "To be respected — seen as capable, excellent, and worth knowing.", type: 3 },
-      { label: "To be fully known — not just understood, but truly seen inside out.", type: 4 },
-    ],
-  },
-  gut: {
-    prompt: "Your core drive is...",
-    options: [
-      { label: "Getting it right. There's a standard, and it matters deeply to you.", type: 1 },
-      { label: "Being strong. You protect what you love and won't be controlled.", type: 8 },
-      { label: "Having peace. Conflict costs something real, and you need it to be quiet.", type: 9 },
-    ],
-  },
-};
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -768,20 +720,13 @@ function CharacterArt({ type }: { type: number }) {
 
 // ── Profile Tab ────────────────────────────────────────────────────────────
 
-type Center = "head" | "heart" | "gut";
-type QuizPhase = "q1" | "q2" | "q3" | "result";
-
 function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: UserProfile) => void }) {
-  const [phase, setPhase] = useState<QuizPhase>(profile.enneagramType ? "result" : "q1");
-  const [center, setCenter] = useState<Center | null>(null);
   const [type, setType] = useState<number | null>(profile.enneagramType);
   const [wing, setWing] = useState<number | null>(profile.wing);
   const [busy, setBusy] = useState(false);
 
-  function reset() { setPhase("q1"); setCenter(null); setType(null); setWing(null); }
-  function pickCenter(c: Center) { setCenter(c); setPhase("q2"); }
-  function pickType(t: number) { setType(t); setPhase("q3"); }
-  function pickWing(w: number | null) { setWing(w); setPhase("result"); }
+  function selectType(t: number) { setType(t); setWing(null); }
+  function toggleWing(w: number) { setWing((prev) => (prev === w ? null : w)); }
 
   async function save() {
     if (!type || busy) return;
@@ -803,80 +748,55 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: U
 
   const char = type ? CHAR_DATA[type] : null;
   const wings = type ? VALID_WINGS[type] : [];
-  const wingLabels = type ? WING_LABELS[type] : (["", ""] as [string, string]);
-  const q2 = center ? Q2[center] : null;
 
-  if (phase === "q1") return (
-    <>
-      <p className="section-title">Build your <em className="gold">Profile</em></p>
-      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
-      <div className="card quiz-card">
-        <div className="quiz-step">1 of 3</div>
-        <div className="quiz-q">{Q1.prompt}</div>
-        <div className="quiz-opts">
-          {Q1.options.map((o) => (
-            <button key={o.value} className="quiz-opt" onClick={() => pickCenter(o.value)}>{o.label}</button>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-
-  if (phase === "q2" && q2) return (
-    <>
-      <p className="section-title">Build your <em className="gold">Profile</em></p>
-      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
-      <div className="card quiz-card">
-        <div className="quiz-step">2 of 3</div>
-        <div className="quiz-q">{q2.prompt}</div>
-        <div className="quiz-opts">
-          {q2.options.map((o) => (
-            <button key={o.type} className="quiz-opt" onClick={() => pickType(o.type)}>{o.label}</button>
-          ))}
-        </div>
-        <button className="quiz-back" onClick={() => setPhase("q1")}>← back</button>
-      </div>
-    </>
-  );
-
-  if (phase === "q3" && type) return (
-    <>
-      <p className="section-title">Build your <em className="gold">Profile</em></p>
-      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
-      <div className="card quiz-card">
-        <div className="quiz-step">3 of 3</div>
-        <div className="quiz-q">One last thing — which feels more true?</div>
-        <div className="quiz-opts">
-          {wings.map((w, i) => (
-            <button key={w} className="quiz-opt" onClick={() => pickWing(w)}>{wingLabels[i]}</button>
-          ))}
-        </div>
-        <button className="quiz-back" onClick={() => setPhase("q2")}>← back</button>
-        <button className="quiz-skip" onClick={() => pickWing(null)}>Skip — I&apos;m not sure yet</button>
-      </div>
-    </>
-  );
-
-  if (phase === "result" && char && type) return (
+  return (
     <>
       <p className="section-title">Your <em className="gold">Profile</em></p>
-      <p className="section-desc">This is how the pastoral AI will understand you — privately, beneath every response.</p>
-      <div className="result-card">
-        <div className="result-type-label">{TYPE_NAMES[type]}</div>
-        <div className="result-art"><CharacterArt type={type} /></div>
-        <div className="result-char-name">{char.name}</div>
-        <div className="result-verse">{char.verse}</div>
-        <div className="result-desc">{char.desc}</div>
-        {wing && <div className="result-wing">{TYPE_NAMES[type]} · wing {wing}</div>}
-        <button className="btn" style={{ background: "var(--gold)", color: "var(--ink)", marginTop: "1.2rem" }} onClick={save} disabled={busy}>
-          {busy ? "Saving..." : "Save & Apply This Profile"}
+      <p className="section-desc">Your Enneagram type shapes how the AI speaks to you — pastorally, not clinically.</p>
+
+      <div className="card" style={{ borderTop: "2px solid var(--gold)" }}>
+        <div className="card-lbl gold">What&apos;s your Enneagram type?</div>
+        <div className="profile-grid">
+          {Object.entries(TYPE_NAMES).map(([n, label]) => {
+            const num = Number(n);
+            return (
+              <button key={num} className={`profile-type-btn${type === num ? " active" : ""}`} onClick={() => selectType(num)}>
+                <span className="profile-type-num">{num}</span>
+                <span className="profile-type-name">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {type && (
+          <>
+            <div className="card-lbl gold" style={{ marginTop: "1.2rem" }}>Wing <span className="hint">optional</span></div>
+            <div className="profile-wing-row">
+              {wings.map((w) => (
+                <button key={w} className={`profile-wing-btn${wing === w ? " active" : ""}`} onClick={() => toggleWing(w)}>
+                  {type}w{w}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <button className="btn" style={{ background: "var(--gold)", color: "var(--ink)", marginTop: "1.4rem" }} onClick={save} disabled={!type || busy}>
+          {busy ? "Saving..." : "Save Profile"}
         </button>
-        <button className="quiz-back" style={{ display: "block", marginTop: "0.8rem", textAlign: "center", width: "100%" }} onClick={reset}>← Retake</button>
       </div>
+
+      {type && char && (
+        <div className="result-card" style={{ marginTop: 14 }}>
+          <div className="result-type-label">{TYPE_NAMES[type]}{wing ? ` · wing ${wing}` : ""}</div>
+          <div className="result-art"><CharacterArt type={type} /></div>
+          <div className="result-char-name">{char.name}</div>
+          <div className="result-verse">{char.verse}</div>
+          <div className="result-desc">{char.desc}</div>
+        </div>
+      )}
     </>
   );
-
-  return null;
 }
 
 // ── Main App ───────────────────────────────────────────────────────────────
