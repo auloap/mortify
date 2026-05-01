@@ -746,7 +746,6 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: U
     setBusy(false);
   }
 
-  const char = type ? CHAR_DATA[type] : null;
   const wings = type ? VALID_WINGS[type] : [];
 
   return (
@@ -786,15 +785,6 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: U
         </button>
       </div>
 
-      {type && char && (
-        <div className="result-card" style={{ marginTop: 14 }}>
-          <div className="result-type-label">{TYPE_NAMES[type]}{wing ? ` · wing ${wing}` : ""}</div>
-          <div className="result-art"><CharacterArt type={type} /></div>
-          <div className="result-char-name">{char.name}</div>
-          <div className="result-verse">{char.verse}</div>
-          <div className="result-desc">{char.desc}</div>
-        </div>
-      )}
     </>
   );
 }
