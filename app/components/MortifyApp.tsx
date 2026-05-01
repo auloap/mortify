@@ -21,7 +21,31 @@ const BOOKS = ["Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","
 
 const STRONGHOLD = 4;
 
+// ── Enneagram ─────────────────────────────────────────────────────────────
+
+const TYPE_NAMES: Record<number, string> = {
+  1: "The Reformer",
+  2: "The Helper",
+  3: "The Achiever",
+  4: "The Individualist",
+  5: "The Investigator",
+  6: "The Loyalist",
+  7: "The Enthusiast",
+  8: "The Challenger",
+  9: "The Peacemaker",
+};
+
+const VALID_WINGS: Record<number, number[]> = {
+  1: [9, 2], 2: [1, 3], 3: [2, 4], 4: [3, 5],
+  5: [4, 6], 6: [5, 7], 7: [6, 8], 8: [7, 9], 9: [8, 1],
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────
+
+interface UserProfile {
+  enneagramType: number | null;
+  wing: number | null;
+}
 
 interface QTEntry {
   id: number;
@@ -489,20 +513,127 @@ function HistoryTab({ qtEntries, sinEntries, onDelQT, onDelSin }: {
   );
 }
 
+// ── Profile Tab ────────────────────────────────────────────────────────────
+
+function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: UserProfile) => void }) {
+  const [type, setType] = useState<number | null>(profile.enneagramType);
+  const [wing, setWing] = useState<number | null>(profile.wing);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function selectType(t: number) {
+    setType(t);
+    setWing(null);
+    setSaved(false);
+  }
+
+  function selectWing(w: number) {
+    setWing((prev) => (prev === w ? null : w));
+    setSaved(false);
+  }
+
+  async function save() {
+    if (!type || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enneagramType: type, wing }),
+      });
+      const p: UserProfile = await res.json();
+      onSaved(p);
+      setSaved(true);
+      showToast("Profile saved ✦");
+    } catch {
+      showToast("Could not save profile", "var(--rust)");
+    }
+    setBusy(false);
+  }
+
+  const wings = type ? VALID_WINGS[type] : [];
+
+  return (
+    <>
+      <p className="section-title">Your <em className="gold">Profile</em></p>
+      <p className="section-desc">Help the AI understand you — responses will be shaped to your heart, not your type number.</p>
+
+      <div className="card">
+        <div className="card-lbl gold">Which description fits you most?</div>
+        <div className="profile-grid">
+          {Object.entries(TYPE_NAMES).map(([n, label]) => {
+            const num = Number(n);
+            const active = type === num;
+            return (
+              <button
+                key={num}
+                className={`profile-type-btn${active ? " active" : ""}`}
+                onClick={() => selectType(num)}
+              >
+                <span className="profile-type-num">{num}</span>
+                <span className="profile-type-name">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {type && (
+          <>
+            <div className="card-lbl gold" style={{ marginTop: "1.2rem" }}>Wing <span className="hint">optional — the adjacent type that colours you</span></div>
+            <div className="profile-wing-row">
+              {wings.map((w) => (
+                <button
+                  key={w}
+                  className={`profile-wing-btn${wing === w ? " active" : ""}`}
+                  onClick={() => selectWing(w)}
+                >
+                  {type}w{w}
+                </button>
+              ))}
+              {wing && (
+                <button className="profile-wing-btn" style={{ opacity: 0.5 }} onClick={() => setWing(null)}>
+                  clear
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        <button className="btn" style={{ background: "var(--gold)", color: "var(--ink)", marginTop: "1.4rem" }} onClick={save} disabled={!type || busy}>
+          {busy ? "Saving..." : saved ? "Saved ✦" : "Save Profile"}
+        </button>
+      </div>
+
+      {profile.enneagramType && (
+        <div className="ai-card" style={{ borderColor: "var(--gold)" }}>
+          <div className="ai-lbl gold">Current profile</div>
+          <div className="ai-text">
+            Type {profile.enneagramType} — {TYPE_NAMES[profile.enneagramType]}
+            {profile.wing ? `, wing ${profile.wing}` : ""}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Main App ───────────────────────────────────────────────────────────────
 
 export default function MortifyApp() {
-  const [tab, setTab] = useState<"qt" | "mortify" | "dashboard" | "history">("qt");
+  const [tab, setTab] = useState<"qt" | "mortify" | "dashboard" | "history" | "profile">("qt");
   const [qtEntries, setQTEntries] = useState<QTEntry[]>([]);
   const [sinEntries, setSinEntries] = useState<SinEntry[]>([]);
+  const [profile, setProfile] = useState<UserProfile>({ enneagramType: null, wing: null });
 
   const load = useCallback(async () => {
-    const [qt, sin] = await Promise.all([
+    const [qt, sin, prof] = await Promise.all([
       fetch("/api/qt").then((r) => r.json()),
       fetch("/api/sin").then((r) => r.json()),
+      fetch("/api/profile").then((r) => r.json()),
     ]);
     setQTEntries(qt);
     setSinEntries(sin);
+    setProfile(prof);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -524,6 +655,7 @@ export default function MortifyApp() {
     { id: "mortify" as const, icon: "⚔", label: "Mortify" },
     { id: "dashboard" as const, icon: "◎", label: "Patterns" },
     { id: "history" as const, icon: "▤", label: "History" },
+    { id: "profile" as const, icon: "◈", label: "Profile" },
   ];
 
   return (
@@ -545,6 +677,7 @@ export default function MortifyApp() {
         {tab === "mortify" && <SinTab onSaved={(e) => setSinEntries((prev) => [e, ...prev])} />}
         {tab === "dashboard" && <DashboardTab qtEntries={qtEntries} sinEntries={sinEntries} />}
         {tab === "history" && <HistoryTab qtEntries={qtEntries} sinEntries={sinEntries} onDelQT={delQT} onDelSin={delSin} />}
+        {tab === "profile" && <ProfileTab profile={profile} onSaved={setProfile} />}
       </div>
       <nav className="bottom-nav">
         {tabs.map((t) => (

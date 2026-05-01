@@ -157,6 +157,20 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 
 .toast{position:fixed;bottom:calc(72px + var(--safe-bottom));left:50%;transform:translateX(-50%);background:var(--green);color:white;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:8px 18px;z-index:999;white-space:nowrap;pointer-events:none;animation:fadeIn 0.3s ease;}
 
+.card-lbl.gold{color:var(--gold);}
+.section-title em.gold{color:var(--gold);}
+
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;}
+.profile-type-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);background:var(--paper);cursor:pointer;text-align:left;transition:all 0.15s;}
+.profile-type-btn:hover{border-color:var(--gold);background:#fffdf5;}
+.profile-type-btn.active{border-color:var(--gold);background:linear-gradient(135deg,#fffdf0,#fdf5d8);box-shadow:0 0 0 1px var(--gold);}
+.profile-type-num{font-family:'DM Mono',monospace;font-size:1rem;color:var(--gold);flex-shrink:0;width:18px;}
+.profile-type-name{font-family:'Cormorant Garamond',serif;font-size:0.88rem;color:var(--ink);line-height:1.3;}
+.profile-wing-row{display:flex;gap:10px;align-items:center;margin-top:4px;}
+.profile-wing-btn{font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;padding:7px 16px;border:1px solid var(--border);background:var(--paper);cursor:pointer;color:var(--ash);transition:all 0.15s;}
+.profile-wing-btn:hover{border-color:var(--gold);}
+.profile-wing-btn.active{border-color:var(--gold);background:var(--gold);color:white;}
+
 /* ── Mobile ── */
 @media (max-width: 500px) {
   /* Stack two-col grids to single column */
