@@ -41,15 +41,15 @@ const VALID_WINGS: Record<number, number[]> = {
 };
 
 const CHAR_DATA: Record<number, { name: string; verse: string; desc: string }> = {
-  1: { name: "Nehemiah", verse: "Neh 2:17 — "Come, let us rebuild the wall."", desc: "The builder who burned with righteous vision. He couldn't rest while the walls were broken — and when he prayed, he also picked up a trowel." },
-  2: { name: "Barnabas", verse: "Acts 11:24 — "A good man, full of the Holy Spirit."", desc: "The son of encouragement who sold his field and gave the money away. He saw potential in people others had written off." },
-  3: { name: "Joseph", verse: "Gen 39:3 — "His master saw that the Lord was with him."", desc: "The dreamer who succeeded at everything he touched — and slowly learned that God's purposes, not his achievements, were the real story." },
-  4: { name: "David", verse: "Ps 42:1 — "As a deer longs for flowing streams, so my soul longs for you."", desc: "The poet-king who brought every shade of longing, grief, and delight straight to God — unfiltered and unashamed." },
-  5: { name: "Luke", verse: "Luke 1:3 — "Having carefully investigated everything from the beginning."", desc: "The physician who watched before he wrote. He gathered testimony, ordered it with care, and gave us the most complete picture we have." },
-  6: { name: "Peter", verse: "Matt 16:18 — "On this rock I will build my church."", desc: "The one who doubted loudly, denied painfully, and wept bitterly — and was still called a rock. Grace renamed him before he earned it." },
-  7: { name: "Paul", verse: "Phil 4:11 — "I have learned, in whatever state I am, to be content."", desc: "The adventurer who planted churches across the empire — and learned, slowly, that depth and not distance was the point." },
-  8: { name: "Elijah", verse: "1 Kgs 19:5 — "An angel touched him and said: get up and eat."", desc: "The prophet who called down fire and then collapsed under a tree. God met his exhaustion with bread — not a lecture." },
-  9: { name: "Abraham", verse: "Gen 13:9 — "You choose. If you go left, I'll go right."", desc: "The father of faith who let his nephew choose first, walked slowly into a promise he couldn't see, and trusted the voice that called him." },
+  1: { name: "Nehemiah", verse: 'Neh 2:17 — "Come, let us rebuild the wall."', desc: "The builder who burned with righteous vision. He couldn't rest while the walls were broken — and when he prayed, he also picked up a trowel." },
+  2: { name: "Barnabas", verse: 'Acts 11:24 — "A good man, full of the Holy Spirit."', desc: "The son of encouragement who sold his field and gave the money away. He saw potential in people others had written off." },
+  3: { name: "Joseph", verse: 'Gen 39:3 — "His master saw that the Lord was with him."', desc: "The dreamer who succeeded at everything he touched — and slowly learned that God's purposes, not his achievements, were the real story." },
+  4: { name: "David", verse: 'Ps 42:1 — "As a deer longs for flowing streams, so my soul longs for you."', desc: "The poet-king who brought every shade of longing, grief, and delight straight to God — unfiltered and unashamed." },
+  5: { name: "Luke", verse: 'Luke 1:3 — "Having carefully investigated everything from the beginning."', desc: "The physician who watched before he wrote. He gathered testimony, ordered it with care, and gave us the most complete picture we have." },
+  6: { name: "Peter", verse: 'Matt 16:18 — "On this rock I will build my church."', desc: "The one who doubted loudly, denied painfully, and wept bitterly — and was still called a rock. Grace renamed him before he earned it." },
+  7: { name: "Paul", verse: 'Phil 4:11 — "I have learned, in whatever state I am, to be content."', desc: "The adventurer who planted churches across the empire — and learned, slowly, that depth and not distance was the point." },
+  8: { name: "Elijah", verse: '1 Kgs 19:5 — "An angel touched him and said: get up and eat."', desc: "The prophet who called down fire and then collapsed under a tree. God met his exhaustion with bread — not a lecture." },
+  9: { name: "Abraham", verse: 'Gen 13:9 — "You choose. If you go left, I\'ll go right."', desc: "The father of faith who let his nephew choose first, walked slowly into a promise he couldn't see, and trusted the voice that called him." },
 };
 
 // Wing labels: [wing-a description, wing-b description] matching VALID_WINGS order
