@@ -40,6 +40,67 @@ const VALID_WINGS: Record<number, number[]> = {
   5: [4, 6], 6: [5, 7], 7: [6, 8], 8: [7, 9], 9: [8, 1],
 };
 
+const CHAR_DATA: Record<number, { name: string; verse: string; desc: string }> = {
+  1: { name: "Nehemiah", verse: "Neh 2:17 — "Come, let us rebuild the wall."", desc: "The builder who burned with righteous vision. He couldn't rest while the walls were broken — and when he prayed, he also picked up a trowel." },
+  2: { name: "Barnabas", verse: "Acts 11:24 — "A good man, full of the Holy Spirit."", desc: "The son of encouragement who sold his field and gave the money away. He saw potential in people others had written off." },
+  3: { name: "Joseph", verse: "Gen 39:3 — "His master saw that the Lord was with him."", desc: "The dreamer who succeeded at everything he touched — and slowly learned that God's purposes, not his achievements, were the real story." },
+  4: { name: "David", verse: "Ps 42:1 — "As a deer longs for flowing streams, so my soul longs for you."", desc: "The poet-king who brought every shade of longing, grief, and delight straight to God — unfiltered and unashamed." },
+  5: { name: "Luke", verse: "Luke 1:3 — "Having carefully investigated everything from the beginning."", desc: "The physician who watched before he wrote. He gathered testimony, ordered it with care, and gave us the most complete picture we have." },
+  6: { name: "Peter", verse: "Matt 16:18 — "On this rock I will build my church."", desc: "The one who doubted loudly, denied painfully, and wept bitterly — and was still called a rock. Grace renamed him before he earned it." },
+  7: { name: "Paul", verse: "Phil 4:11 — "I have learned, in whatever state I am, to be content."", desc: "The adventurer who planted churches across the empire — and learned, slowly, that depth and not distance was the point." },
+  8: { name: "Elijah", verse: "1 Kgs 19:5 — "An angel touched him and said: get up and eat."", desc: "The prophet who called down fire and then collapsed under a tree. God met his exhaustion with bread — not a lecture." },
+  9: { name: "Abraham", verse: "Gen 13:9 — "You choose. If you go left, I'll go right."", desc: "The father of faith who let his nephew choose first, walked slowly into a promise he couldn't see, and trusted the voice that called him." },
+};
+
+// Wing labels: [wing-a description, wing-b description] matching VALID_WINGS order
+const WING_LABELS: Record<number, [string, string]> = {
+  1: ["I hold my convictions quietly — I process in silence more than I speak.", "I care about helping people live well — not just holding the line myself."],
+  2: ["I give because it's right — duty is as much a part of me as love.", "I want to be seen for what I give — the recognition matters as much as the act."],
+  3: ["I achieve partly to love well — I care deeply about the people I'm doing it for.", "There's a real self beneath the performance — and I want to find it."],
+  4: ["I want to be seen, not just known — my uniqueness should be visible.", "I go inward — I need to understand my own depths before I can offer them to anyone."],
+  5: ["My inner world is rich with feeling, not just thought — I long to be truly understood.", "I'm loyal beneath the solitude — understanding things is how I feel secure."],
+  6: ["When scared, I retreat into my mind — thinking feels safer than trusting.", "I cope by finding silver linings — I try to stay hopeful despite the fear underneath."],
+  7: ["There's loyalty beneath the energy — I care deeply about the people I travel with.", "I go after what I want with force — I don't just reframe difficulty, I push through it."],
+  8: ["I'm restless — I want to conquer and explore, not just protect and control.", "I'm powerful but patient — I don't need to show my strength to know I have it."],
+  9: ["I can show up with force when pushed — but peace is still where I want to be.", "I care about what's right — my desire for peace has a principled, idealistic edge."],
+};
+
+const Q1 = {
+  prompt: "When life gets hard, what happens inside you first?",
+  options: [
+    { label: "My mind starts working — I think, question, and try to prepare.", value: "head" as const },
+    { label: "I feel it — I want to connect, to matter, to be truly seen.", value: "heart" as const },
+    { label: "Something in me reacts — I push forward, push back, or go very still.", value: "gut" as const },
+  ],
+};
+
+const Q2: Record<"head" | "heart" | "gut", { prompt: string; options: { label: string; type: number }[] }> = {
+  head: {
+    prompt: "Your thinking is really trying to...",
+    options: [
+      { label: "Understand. You gather the full picture before you commit to anything.", type: 5 },
+      { label: "Stay safe. Your mind scans for what could go wrong and looks for solid ground.", type: 6 },
+      { label: "Stay open. You look for what's still possible and keep your options alive.", type: 7 },
+    ],
+  },
+  heart: {
+    prompt: "In relationships, what you most want is...",
+    options: [
+      { label: "To be genuinely needed — and to give in a way that really makes a difference.", type: 2 },
+      { label: "To be respected — seen as capable, excellent, and worth knowing.", type: 3 },
+      { label: "To be fully known — not just understood, but truly seen inside out.", type: 4 },
+    ],
+  },
+  gut: {
+    prompt: "Your core drive is...",
+    options: [
+      { label: "Getting it right. There's a standard, and it matters deeply to you.", type: 1 },
+      { label: "Being strong. You protect what you love and won't be controlled.", type: 8 },
+      { label: "Having peace. Conflict costs something real, and you need it to be quiet.", type: 9 },
+    ],
+  },
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface UserProfile {
@@ -513,24 +574,214 @@ function HistoryTab({ qtEntries, sinEntries, onDelQT, onDelSin }: {
   );
 }
 
+// ── Character Art ──────────────────────────────────────────────────────────
+
+function CharacterArt({ type }: { type: number }) {
+  // Shared face primitives
+  const face = <ellipse cx="50" cy="60" rx="22" ry="24" fill="#f5c89a" />;
+  const nose = <circle cx="50" cy="63" r="1.2" fill="#cc8860" />;
+  const eyes = (col = "#150a05") => (<>
+    <ellipse cx="41" cy="53" rx="5" ry="5.5" fill={col} />
+    <ellipse cx="59" cy="53" rx="5" ry="5.5" fill={col} />
+    <circle cx="42.5" cy="51.5" r="1.8" fill="white" />
+    <circle cx="60.5" cy="51.5" r="1.8" fill="white" />
+  </>);
+  const sternBrows = (<>
+    <line x1="36" y1="46" x2="46" y2="44" stroke="#301808" strokeWidth="2" strokeLinecap="round" />
+    <line x1="54" y1="44" x2="64" y2="46" stroke="#301808" strokeWidth="2" strokeLinecap="round" />
+  </>);
+  const gentleBrows = (<>
+    <path d="M36 46 Q41 43.5 46 45.5" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <path d="M54 45.5 Q59 43.5 64 46" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+  </>);
+  const raisedBrows = (<>
+    <path d="M36 44 Q41 41.5 46 43" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <path d="M54 43 Q59 41.5 64 44" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+  </>);
+  const smile = <path d="M43 70 Q50 75 57 70" stroke="#b07050" strokeWidth="1.5" fill="none" strokeLinecap="round" />;
+  const broadSmile = <path d="M41 70 Q50 78 59 70" stroke="#b07050" strokeWidth="2" fill="none" strokeLinecap="round" />;
+  const firmMouth = <path d="M43 71 L57 71" stroke="#b07050" strokeWidth="1.8" fill="none" strokeLinecap="round" />;
+  const gentleSmile = <path d="M44 71 Q50 74 56 71" stroke="#b07050" strokeWidth="1.5" fill="none" strokeLinecap="round" />;
+  const shortDarkHair = (<>
+    <path d="M28 52 Q30 24 50 22 Q70 24 72 52 Q68 35 50 33 Q32 35 28 52Z" fill="#150a05" />
+    <rect x="27" y="50" width="5" height="10" rx="2.5" fill="#150a05" />
+    <rect x="68" y="50" width="5" height="10" rx="2.5" fill="#150a05" />
+  </>);
+
+  switch (type) {
+    case 1: return ( // Nehemiah — scroll
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#2a4a8a" />
+        {shortDarkHair}{face}{sternBrows}{eyes()}{nose}{firmMouth}
+        <rect x="30" y="90" width="40" height="24" rx="2" fill="#e8d5a0" />
+        <ellipse cx="30" cy="102" rx="3.5" ry="12" fill="#c8a860" />
+        <ellipse cx="70" cy="102" rx="3.5" ry="12" fill="#c8a860" />
+        <line x1="36" y1="97" x2="64" y2="97" stroke="#a08040" strokeWidth="0.8" />
+        <line x1="36" y1="102" x2="64" y2="102" stroke="#a08040" strokeWidth="0.8" />
+        <line x1="36" y1="107" x2="56" y2="107" stroke="#a08040" strokeWidth="0.8" />
+      </svg>
+    );
+    case 2: return ( // Barnabas — open hands + heart
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#c97020" />
+        <path d="M28 55 Q28 26 50 23 Q72 26 72 55 Q70 38 63 34 Q50 30 37 34 Q30 38 28 55Z" fill="#5a2e10" />
+        <path d="M28 54 Q24 60 26 68" stroke="#5a2e10" strokeWidth="6" strokeLinecap="round" fill="none" />
+        <path d="M72 54 Q76 60 74 68" stroke="#5a2e10" strokeWidth="6" strokeLinecap="round" fill="none" />
+        {face}{gentleBrows}{eyes()}{nose}{broadSmile}
+        <path d="M22 96 Q18 90 22 85 Q26 80 30 84 L34 95Z" fill="#f5c89a" stroke="#cc8860" strokeWidth="0.8" />
+        <path d="M78 96 Q82 90 78 85 Q74 80 70 84 L66 95Z" fill="#f5c89a" stroke="#cc8860" strokeWidth="0.8" />
+        <path d="M44 102 Q50 96 56 102 Q56 110 50 115 Q44 110 44 102Z" fill="#e85530" opacity="0.8" />
+      </svg>
+    );
+    case 3: return ( // Joseph — striped coat
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#c9a020" />
+        {shortDarkHair}{face}{gentleBrows}{eyes()}{nose}{smile}
+        <rect x="28" y="88" width="44" height="6" fill="#e85530" />
+        <rect x="28" y="94" width="44" height="6" fill="#2a6ab0" />
+        <rect x="28" y="100" width="44" height="6" fill="#2d9a50" />
+        <rect x="28" y="106" width="44" height="6" fill="#c9a020" />
+        <rect x="28" y="112" width="44" height="6" fill="#8a2a8a" />
+      </svg>
+    );
+    case 4: return ( // David — harp
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#3a2070" />
+        <path d="M28 55 Q28 24 50 22 Q72 24 72 55 Q70 36 50 33 Q30 36 28 55Z" fill="#1a0808" />
+        <path d="M28 54 Q24 68 26 82" stroke="#1a0808" strokeWidth="7" strokeLinecap="round" fill="none" />
+        <path d="M72 54 Q76 68 74 82" stroke="#1a0808" strokeWidth="7" strokeLinecap="round" fill="none" />
+        {face}
+        <path d="M36 47 Q41 44 46 46" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M54 46 Q59 44 64 47" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        {eyes("#1a0808")}{nose}{gentleSmile}
+        <path d="M34 90 Q34 118 56 118" stroke="#c8a860" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M34 90 Q56 90 56 118" stroke="#c8a860" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <line x1="37" y1="93" x2="53" y2="116" stroke="#c8a860" strokeWidth="1" opacity="0.7" />
+        <line x1="41" y1="91" x2="54" y2="113" stroke="#c8a860" strokeWidth="1" opacity="0.7" />
+        <line x1="45" y1="90.5" x2="55.5" y2="110" stroke="#c8a860" strokeWidth="1" opacity="0.7" />
+        <line x1="49" y1="90.5" x2="56" y2="107" stroke="#c8a860" strokeWidth="1" opacity="0.7" />
+      </svg>
+    );
+    case 5: return ( // Luke — open book
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#2a6a5a" />
+        <path d="M28 52 Q28 24 50 22 Q72 24 72 52 Q70 36 56 34 Q48 33 40 36 Q32 40 28 52Z" fill="#2a1808" />
+        <path d="M28 52 Q30 44 38 38" stroke="#2a1808" strokeWidth="4" strokeLinecap="round" fill="none" />
+        <rect x="27" y="50" width="4" height="8" rx="2" fill="#2a1808" />
+        {face}
+        <path d="M36 46 Q41 44 46 45.5" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M54 45.5 Q59 44 64 46" stroke="#301808" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        {eyes("#2a1808")}{nose}{gentleSmile}
+        <path d="M28 90 Q50 87 72 90 L72 118 Q50 115 28 118Z" fill="#e8e0d0" stroke="#a09070" strokeWidth="0.8" />
+        <line x1="50" y1="87" x2="50" y2="118" stroke="#a09070" strokeWidth="1" />
+        <line x1="33" y1="96" x2="48" y2="96" stroke="#808070" strokeWidth="0.7" />
+        <line x1="33" y1="101" x2="48" y2="101" stroke="#808070" strokeWidth="0.7" />
+        <line x1="33" y1="106" x2="48" y2="106" stroke="#808070" strokeWidth="0.7" />
+        <line x1="33" y1="111" x2="43" y2="111" stroke="#808070" strokeWidth="0.7" />
+        <line x1="52" y1="96" x2="67" y2="96" stroke="#808070" strokeWidth="0.7" />
+        <line x1="52" y1="101" x2="67" y2="101" stroke="#808070" strokeWidth="0.7" />
+        <line x1="52" y1="106" x2="67" y2="106" stroke="#808070" strokeWidth="0.7" />
+        <line x1="52" y1="111" x2="62" y2="111" stroke="#808070" strokeWidth="0.7" />
+      </svg>
+    );
+    case 6: return ( // Peter — fish + wave
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#2a508a" />
+        <path d="M28 52 Q30 24 50 22 Q70 24 72 52 Q68 36 50 34 Q32 36 28 52Z" fill="#150a05" />
+        <path d="M35 28 Q38 22 43 25" stroke="#150a05" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <path d="M50 22 Q54 18 58 22" stroke="#150a05" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <rect x="27" y="50" width="5" height="11" rx="2.5" fill="#150a05" />
+        <rect x="68" y="50" width="5" height="11" rx="2.5" fill="#150a05" />
+        {face}{raisedBrows}
+        <ellipse cx="41" cy="53" rx="5.5" ry="6" fill="#150a05" />
+        <ellipse cx="59" cy="53" rx="5.5" ry="6" fill="#150a05" />
+        <circle cx="42.5" cy="51.5" r="2" fill="white" />
+        <circle cx="60.5" cy="51.5" r="2" fill="white" />
+        {nose}{smile}
+        <path d="M28 102 Q50 92 72 102 Q50 112 28 102Z" fill="#5a8abf" />
+        <path d="M28 102 Q18 97 20 102 Q18 107 28 102Z" fill="#5a8abf" />
+        <circle cx="68" cy="101" r="1.5" fill="#1a0a05" />
+        <path d="M18 120 Q28 116 38 120 Q48 124 58 120 Q68 116 82 120" stroke="#7ab0e0" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.7" />
+      </svg>
+    );
+    case 7: return ( // Paul — beard + sandal
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#b84820" />
+        <path d="M28 52 Q30 26 50 24 Q70 26 72 52 Q68 38 50 36 Q32 38 28 52Z" fill="#2a1505" />
+        <rect x="27" y="50" width="5" height="10" rx="2.5" fill="#2a1505" />
+        <rect x="68" y="50" width="5" height="10" rx="2.5" fill="#2a1505" />
+        {face}
+        <path d="M32 68 Q33 80 38 84 Q50 88 62 84 Q67 80 68 68" fill="#2a1505" />
+        <path d="M32 68 Q38 72 42 74 Q50 76 58 74 Q62 72 68 68" fill="#f5c89a" />
+        {gentleBrows}{eyes()}{nose}{broadSmile}
+        <path d="M20 115 Q50 108 80 115" stroke="#8a6840" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeDasharray="3,2" />
+        <path d="M38 90 Q44 88 50 90 Q44 96 38 90Z" fill="#8a6840" />
+        <line x1="41" y1="90" x2="41" y2="96" stroke="#6a5030" strokeWidth="1" />
+        <line x1="44" y1="88" x2="44" y2="96" stroke="#6a5030" strokeWidth="1" />
+        <line x1="47" y1="88" x2="47" y2="94" stroke="#6a5030" strokeWidth="1" />
+      </svg>
+    );
+    case 8: return ( // Elijah — wild hair + flame
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#7a1818" />
+        <path d="M28 55 Q26 26 50 22 Q74 26 72 55 Q68 32 58 28 Q50 24 42 28 Q32 32 28 55Z" fill="#150a05" />
+        <path d="M35 26 Q30 18 33 14" stroke="#150a05" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <path d="M50 22 Q48 14 52 10" stroke="#150a05" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <path d="M65 26 Q70 18 67 14" stroke="#150a05" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <path d="M28 54 Q22 65 24 76" stroke="#150a05" strokeWidth="7" fill="none" strokeLinecap="round" />
+        <path d="M72 54 Q78 65 76 76" stroke="#150a05" strokeWidth="7" fill="none" strokeLinecap="round" />
+        {face}{sternBrows}
+        <ellipse cx="41" cy="53" rx="5" ry="6" fill="#150a05" />
+        <ellipse cx="59" cy="53" rx="5" ry="6" fill="#150a05" />
+        <circle cx="42.5" cy="51" r="1.8" fill="white" />
+        <circle cx="60.5" cy="51" r="1.8" fill="white" />
+        {nose}{firmMouth}
+        <path d="M42 128 Q44 112 50 106 Q56 112 58 128Z" fill="#e85030" />
+        <path d="M44 128 Q46 116 50 110 Q54 116 56 128Z" fill="#f0a020" />
+        <path d="M46 128 Q48 120 50 116 Q52 120 54 128Z" fill="#f8e040" />
+      </svg>
+    );
+    case 9: return ( // Abraham — white hair + stars
+      <svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg" className="char-art">
+        <circle cx="50" cy="58" r="50" fill="#182850" />
+        <circle cx="22" cy="18" r="2" fill="white" opacity="0.9" />
+        <circle cx="50" cy="12" r="2.5" fill="white" opacity="0.9" />
+        <circle cx="78" cy="18" r="2" fill="white" opacity="0.9" />
+        <circle cx="35" cy="8" r="1.5" fill="white" opacity="0.7" />
+        <circle cx="65" cy="8" r="1.5" fill="white" opacity="0.7" />
+        <circle cx="14" cy="32" r="1" fill="white" opacity="0.5" />
+        <circle cx="86" cy="32" r="1" fill="white" opacity="0.5" />
+        <path d="M28 52 Q30 26 50 24 Q70 26 72 52 Q68 38 50 36 Q32 38 28 52Z" fill="#d0d0d0" />
+        <rect x="27" y="50" width="4" height="9" rx="2" fill="#d0d0d0" />
+        <rect x="69" y="50" width="4" height="9" rx="2" fill="#d0d0d0" />
+        <path d="M32 68 Q32 84 40 87 Q50 90 60 87 Q68 84 68 68" fill="#d0d0d0" />
+        <path d="M32 68 Q38 74 44 76 Q50 78 56 76 Q62 74 68 68" fill="#f5c89a" />
+        {face}{gentleBrows}{eyes("#2a1808")}{nose}
+        <path d="M43 70 Q50 75 57 70" stroke="#b07050" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M36 57 Q41 59 46 57" stroke="#cc8860" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0.5" />
+        <path d="M54 57 Q59 59 64 57" stroke="#cc8860" strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0.5" />
+      </svg>
+    );
+    default: return null;
+  }
+}
+
 // ── Profile Tab ────────────────────────────────────────────────────────────
 
+type Center = "head" | "heart" | "gut";
+type QuizPhase = "q1" | "q2" | "q3" | "result";
+
 function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: UserProfile) => void }) {
+  const [phase, setPhase] = useState<QuizPhase>(profile.enneagramType ? "result" : "q1");
+  const [center, setCenter] = useState<Center | null>(null);
   const [type, setType] = useState<number | null>(profile.enneagramType);
   const [wing, setWing] = useState<number | null>(profile.wing);
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  function selectType(t: number) {
-    setType(t);
-    setWing(null);
-    setSaved(false);
-  }
-
-  function selectWing(w: number) {
-    setWing((prev) => (prev === w ? null : w));
-    setSaved(false);
-  }
+  function reset() { setPhase("q1"); setCenter(null); setType(null); setWing(null); }
+  function pickCenter(c: Center) { setCenter(c); setPhase("q2"); }
+  function pickType(t: number) { setType(t); setPhase("q3"); }
+  function pickWing(w: number | null) { setWing(w); setPhase("result"); }
 
   async function save() {
     if (!type || busy) return;
@@ -543,78 +794,89 @@ function ProfileTab({ profile, onSaved }: { profile: UserProfile; onSaved: (p: U
       });
       const p: UserProfile = await res.json();
       onSaved(p);
-      setSaved(true);
       showToast("Profile saved ✦");
     } catch {
-      showToast("Could not save profile", "var(--rust)");
+      showToast("Could not save", "var(--rust)");
     }
     setBusy(false);
   }
 
+  const char = type ? CHAR_DATA[type] : null;
   const wings = type ? VALID_WINGS[type] : [];
+  const wingLabels = type ? WING_LABELS[type] : (["", ""] as [string, string]);
+  const q2 = center ? Q2[center] : null;
 
-  return (
+  if (phase === "q1") return (
     <>
-      <p className="section-title">Your <em className="gold">Profile</em></p>
-      <p className="section-desc">Help the AI understand you — responses will be shaped to your heart, not your type number.</p>
-
-      <div className="card">
-        <div className="card-lbl gold">Which description fits you most?</div>
-        <div className="profile-grid">
-          {Object.entries(TYPE_NAMES).map(([n, label]) => {
-            const num = Number(n);
-            const active = type === num;
-            return (
-              <button
-                key={num}
-                className={`profile-type-btn${active ? " active" : ""}`}
-                onClick={() => selectType(num)}
-              >
-                <span className="profile-type-num">{num}</span>
-                <span className="profile-type-name">{label}</span>
-              </button>
-            );
-          })}
+      <p className="section-title">Build your <em className="gold">Profile</em></p>
+      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
+      <div className="card quiz-card">
+        <div className="quiz-step">1 of 3</div>
+        <div className="quiz-q">{Q1.prompt}</div>
+        <div className="quiz-opts">
+          {Q1.options.map((o) => (
+            <button key={o.value} className="quiz-opt" onClick={() => pickCenter(o.value)}>{o.label}</button>
+          ))}
         </div>
-
-        {type && (
-          <>
-            <div className="card-lbl gold" style={{ marginTop: "1.2rem" }}>Wing <span className="hint">optional — the adjacent type that colours you</span></div>
-            <div className="profile-wing-row">
-              {wings.map((w) => (
-                <button
-                  key={w}
-                  className={`profile-wing-btn${wing === w ? " active" : ""}`}
-                  onClick={() => selectWing(w)}
-                >
-                  {type}w{w}
-                </button>
-              ))}
-              {wing && (
-                <button className="profile-wing-btn" style={{ opacity: 0.5 }} onClick={() => setWing(null)}>
-                  clear
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        <button className="btn" style={{ background: "var(--gold)", color: "var(--ink)", marginTop: "1.4rem" }} onClick={save} disabled={!type || busy}>
-          {busy ? "Saving..." : saved ? "Saved ✦" : "Save Profile"}
-        </button>
       </div>
-
-      {profile.enneagramType && (
-        <div className="ai-card" style={{ borderColor: "var(--gold)" }}>
-          <div className="ai-lbl gold">Current profile</div>
-          <div className="ai-text">
-            Type {profile.enneagramType} — {TYPE_NAMES[profile.enneagramType]}
-            {profile.wing ? `, wing ${profile.wing}` : ""}
-          </div>
-        </div>
-      )}
     </>
   );
+
+  if (phase === "q2" && q2) return (
+    <>
+      <p className="section-title">Build your <em className="gold">Profile</em></p>
+      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
+      <div className="card quiz-card">
+        <div className="quiz-step">2 of 3</div>
+        <div className="quiz-q">{q2.prompt}</div>
+        <div className="quiz-opts">
+          {q2.options.map((o) => (
+            <button key={o.type} className="quiz-opt" onClick={() => pickType(o.type)}>{o.label}</button>
+          ))}
+        </div>
+        <button className="quiz-back" onClick={() => setPhase("q1")}>← back</button>
+      </div>
+    </>
+  );
+
+  if (phase === "q3" && type) return (
+    <>
+      <p className="section-title">Build your <em className="gold">Profile</em></p>
+      <p className="section-desc">3 short questions. No labels, no framework — just honest self-reflection.</p>
+      <div className="card quiz-card">
+        <div className="quiz-step">3 of 3</div>
+        <div className="quiz-q">One last thing — which feels more true?</div>
+        <div className="quiz-opts">
+          {wings.map((w, i) => (
+            <button key={w} className="quiz-opt" onClick={() => pickWing(w)}>{wingLabels[i]}</button>
+          ))}
+        </div>
+        <button className="quiz-back" onClick={() => setPhase("q2")}>← back</button>
+        <button className="quiz-skip" onClick={() => pickWing(null)}>Skip — I&apos;m not sure yet</button>
+      </div>
+    </>
+  );
+
+  if (phase === "result" && char && type) return (
+    <>
+      <p className="section-title">Your <em className="gold">Profile</em></p>
+      <p className="section-desc">This is how the pastoral AI will understand you — privately, beneath every response.</p>
+      <div className="result-card">
+        <div className="result-type-label">{TYPE_NAMES[type]}</div>
+        <div className="result-art"><CharacterArt type={type} /></div>
+        <div className="result-char-name">{char.name}</div>
+        <div className="result-verse">{char.verse}</div>
+        <div className="result-desc">{char.desc}</div>
+        {wing && <div className="result-wing">{TYPE_NAMES[type]} · wing {wing}</div>}
+        <button className="btn" style={{ background: "var(--gold)", color: "var(--ink)", marginTop: "1.2rem" }} onClick={save} disabled={busy}>
+          {busy ? "Saving..." : "Save & Apply This Profile"}
+        </button>
+        <button className="quiz-back" style={{ display: "block", marginTop: "0.8rem", textAlign: "center", width: "100%" }} onClick={reset}>← Retake</button>
+      </div>
+    </>
+  );
+
+  return null;
 }
 
 // ── Main App ───────────────────────────────────────────────────────────────
