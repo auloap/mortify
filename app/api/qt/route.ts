@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
 import Anthropic from "@anthropic-ai/sdk";
+import { buildQTSystem, buildQTUserMessage, UserProfile } from "@/lib/buildSystemPrompt";
 
 const client = new Anthropic();
 
@@ -19,39 +20,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "book and aboutGod are required" }, { status: 400 });
   }
 
+  await ensureTables();
+  const sql = getSql();
+
+  const profileRows = await sql`SELECT * FROM user_profile LIMIT 1`;
+  const profile: UserProfile = profileRows.length > 0
+    ? { enneagramType: profileRows[0].enneagramType as UserProfile["enneagramType"], wing: profileRows[0].wing as number | null }
+    : { enneagramType: null, wing: null };
+
+  const ctx = { book, passage: passage ?? "", aboutGod, aboutSelf: aboutSelf ?? "", apply: apply ?? "", prayer };
+
   let aiReflection = "";
   try {
     const msg = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1000,
-      messages: [
-        {
-          role: "user",
-          content: `You are a warm, Reformed pastor helping someone grow in their love for God through daily Scripture reading.
-
-QT entry:
-- Passage: ${book} ${passage}
-- What they saw of God: ${aboutGod}
-- What they saw of themselves: ${aboutSelf}
-- Application: ${apply}
-- Prayer: ${prayer || "(none)"}
-
-Respond with 3 things in flowing prose — no headers, no lists:
-1. A one-sentence affirmation of the specific insight about God they've seen.
-2. A deepening question — one thing they may not have noticed about God's character that could deepen their delight in Him.
-3. A doxology prompt — a short warm invitation to linger in awe over what they've seen today.
-
-Tone: a pastor who deeply loves God and wants to ignite that same love. Warm, rich prose.`,
-        },
-      ],
+      system: buildQTSystem(profile),
+      messages: [{ role: "user", content: buildQTUserMessage(ctx) }],
     });
     aiReflection = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
   } catch (err) {
     aiReflection = `Could not reach AI. (${err instanceof Error ? err.message : "Unknown error"})`;
   }
 
-  await ensureTables();
-  const sql = getSql();
   const date = new Date().toISOString();
   const rows = await sql`
     INSERT INTO qt_entries (date, book, passage, "aboutGod", "aboutSelf", apply, prayer, "aiReflection")

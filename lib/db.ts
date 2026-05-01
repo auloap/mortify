@@ -33,4 +33,11 @@ export async function ensureTables() {
       "aiPivot" TEXT DEFAULT ''
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id SERIAL PRIMARY KEY,
+      "enneagramType" INTEGER,
+      wing INTEGER
+    )
+  `;
 }

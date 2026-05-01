@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  buildMortificationSystem,
+  buildMortificationUserMessage,
+  buildPivotSystem,
+  buildPivotUserMessage,
+  UserProfile,
+} from "@/lib/buildSystemPrompt";
 
 const client = new Anthropic();
 
@@ -21,6 +28,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "sin is required" }, { status: 400 });
   }
 
+  await ensureTables();
+  const sql = getSql();
+
+  // Fetch profile and today's sin count in parallel
+  const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const [profileRows, todayRows] = await Promise.all([
+    sql`SELECT * FROM user_profile LIMIT 1`,
+    sql`SELECT COUNT(*) as count FROM sin_entries WHERE date LIKE ${today + "%"}`,
+  ]);
+
+  const profile: UserProfile = profileRows.length > 0
+    ? { enneagramType: profileRows[0].enneagramType as UserProfile["enneagramType"], wing: profileRows[0].wing as number | null }
+    : { enneagramType: null, wing: null };
+
+  // Stress flag: 2+ existing entries today means this submission is the 3rd
+  const isStressDay = Number(todayRows[0].count) >= 2;
+
+  const ctx = { sin, emotions, situation: situation ?? "", counterfeit: counterfeit ?? "", postMortem: postMortem ?? "", journal };
+
   let aiReflection = "";
   let aiPivot = "";
 
@@ -29,48 +55,14 @@ export async function POST(req: NextRequest) {
       client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: `You are a Reformed pastor helping someone fight indwelling sin through John Owen's mortification principles.
-
-Sin entry:
-- Sin: ${sin}
-- Emotional triggers: ${emotions.join(", ")}
-- Situation: ${situation}
-- Counterfeit satisfaction: ${counterfeit}
-- Post-mortem cost: ${postMortem}
-- Journal: ${journal || "(none)"}
-
-Respond in flowing prose — no headers, no lists:
-1. A specific Scripture verse (book chapter:verse) speaking to the root desire beneath this sin.
-2. One-sentence theological diagnosis: what is the heart believing the sin promises to provide?
-3. A mortification prompt (2-3 sentences): what Gospel truth should they meditate on to starve this sin?
-
-Tone: warm, pastoral, direct. Speak to the heart.`,
-          },
-        ],
+        system: buildMortificationSystem(profile, isStressDay),
+        messages: [{ role: "user", content: buildMortificationUserMessage(ctx) }],
       }),
       client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: `You are a Gospel-centred pastor helping someone see that every sinful craving is a distorted reach for something only God can truly give.
-
-Sin: ${sin}
-Emotional trigger: ${emotions.join(", ")}
-What it counterfeit-promised: ${counterfeit}
-
-Write 3 short paragraphs — no headers, no lists:
-1. Name the legitimate God-given desire underneath the sin. Be compassionate — do not shame the desire.
-2. Show how God in Christ genuinely satisfies that desire. Include one Scripture reference.
-3. One concrete way they can run to God today to satisfy this need rightly.
-
-Tone: like Jesus at the well — grace and truth. Deeply human and deeply divine.`,
-          },
-        ],
+        system: buildPivotSystem(profile, isStressDay),
+        messages: [{ role: "user", content: buildPivotUserMessage(ctx) }],
       }),
     ]);
 
@@ -80,8 +72,6 @@ Tone: like Jesus at the well — grace and truth. Deeply human and deeply divine
     aiReflection = `Could not reach AI. (${err instanceof Error ? err.message : "Unknown error"})`;
   }
 
-  await ensureTables();
-  const sql = getSql();
   const date = new Date().toISOString();
   const rows = await sql`
     INSERT INTO sin_entries (date, sin, emotions, situation, counterfeit, "postMortem", journal, "aiReflection", "aiPivot")
