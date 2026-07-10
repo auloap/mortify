@@ -288,6 +288,35 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   color:var(--muted);font-family:'Inter',sans-serif;line-height:1;
 }
 
+/* ── Global mood / energy strip ── */
+.mood-strip{
+  display:flex;align-items:center;gap:10px;
+  margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+}
+.mood-strip-lbl{
+  font-size:0.48rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
+  color:var(--muted);flex-shrink:0;
+}
+.mood-btns{display:flex;gap:5px;flex:1;}
+.mood-btn{
+  flex:1;padding:5px 2px;border:1.5px solid var(--border);border-radius:7px;
+  background:white;text-align:center;cursor:pointer;transition:all 0.15s;
+  font-family:'Inter',sans-serif;
+}
+.mood-num{font-size:0.82rem;font-weight:700;color:#ccc;display:block;line-height:1;margin-bottom:1px;}
+.mood-word-sm{font-size:0.36rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:#ccc;display:block;}
+.mood-btn.sel-1{background:#fef2f2;border-color:#fca5a5;}
+.mood-btn.sel-1 .mood-num,.mood-btn.sel-1 .mood-word-sm{color:#dc2626;}
+.mood-btn.sel-2{background:#fff7ed;border-color:#fdba74;}
+.mood-btn.sel-2 .mood-num,.mood-btn.sel-2 .mood-word-sm{color:#ea580c;}
+.mood-btn.sel-3{background:#fefce8;border-color:#fde047;}
+.mood-btn.sel-3 .mood-num,.mood-btn.sel-3 .mood-word-sm{color:#ca8a04;}
+.mood-btn.sel-4{background:#f0fdf4;border-color:#86efac;}
+.mood-btn.sel-4 .mood-num,.mood-btn.sel-4 .mood-word-sm{color:#16a34a;}
+.mood-btn.sel-5{background:#ecfdf5;border-color:#6ee7b7;}
+.mood-btn.sel-5 .mood-num,.mood-btn.sel-5 .mood-word-sm{color:#059669;}
+.mood-status{font-size:0.5rem;font-weight:600;color:var(--muted);letter-spacing:0.04em;flex-shrink:0;min-width:32px;text-align:right;}
+
 /* ── Test tab Win/Loss ── */
 .outcome-hdr{
   font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;

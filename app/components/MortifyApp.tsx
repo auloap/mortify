@@ -487,10 +487,11 @@ function TaskTab({ onSaved }: { onSaved: (e: TaskEntry) => void }) {
 
 // ── Test Tab ───────────────────────────────────────────────────────────────
 
-function TestTab({ onSaved, prefill, onClearPrefill }: {
+function TestTab({ onSaved, prefill, onClearPrefill, moodEnergy }: {
   onSaved: (e: TestEntry) => void;
   prefill?: { sin: string; fromGoal: string } | null;
   onClearPrefill?: () => void;
+  moodEnergy: number | null;
 }) {
   const [sin, setSin] = useState("");
   const [custom, setCustom] = useState("");
@@ -516,13 +517,6 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
   const [aiReflection, setAiReflection] = useState("");
   const [aiPivot, setAiPivot] = useState("");
 
-  // Pulse state
-  const [pulseEnergy, setPulseEnergy] = useState<number | null>(null);
-  const [pulseFeelings, setPulseFeelings] = useState<string[]>([]);
-  const [pulseContexts, setPulseContexts] = useState<string[]>([]);
-  const [pulseCfg, setPulseCfg] = useState<PulseConfig>(defaultPulseConfig);
-  useEffect(() => { setPulseCfg(loadPulseConfig()); }, []);
-
   // Apply prefill from "Fell →" flow
   useEffect(() => {
     if (prefill?.sin) {
@@ -540,7 +534,6 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
     setSin(""); setCustom(""); setEmotions([]); setSituation(""); setOutcome(null);
     setWhatHelped(""); setHowFeeling([]);
     setCounterfeit(""); setPostMortem(""); setJournal("");
-    setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
     setAiVictory(""); setAiReflection(""); setAiPivot("");
     onClearPrefill?.();
   }
@@ -556,7 +549,9 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
           sin: resolvedSin, emotions, situation, outcome,
           whatHelped, howFeeling,
           counterfeit, postMortem, journal,
-          pulseEnergy, pulseFeelings, pulseContexts,
+          pulseEnergy: moodEnergy,
+          pulseFeelings: [],
+          pulseContexts: [],
         }),
       });
       const entry: TestEntry = await res.json();
@@ -564,15 +559,10 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
       else { setAiReflection(entry.aiReflection); setAiPivot(entry.aiPivot); }
       onSaved(entry);
 
-      // Update adaptive pulse config
-      const newCfg = commitPulse(pulseCfg, pulseFeelings, pulseContexts);
-      setPulseCfg(newCfg); savePulseConfig(newCfg);
-
       // Clear form but keep AI response visible
       setSin(""); setCustom(""); setEmotions([]); setSituation(""); setOutcome(null);
       setWhatHelped(""); setHowFeeling([]);
       setCounterfeit(""); setPostMortem(""); setJournal("");
-      setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
       onClearPrefill?.();
       showToast(outcome === "won" ? "Victory logged 🏆" : "Entry saved ⚔", TAB_COLORS.test.color);
     } catch {
@@ -606,13 +596,6 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
       <div className="card">
         {/* ── Stage 1: The Temptation ── */}
         <div className="card-lbl">The Temptation</div>
-
-        <PulsePicker
-          energy={pulseEnergy} setEnergy={setPulseEnergy}
-          feelings={pulseFeelings} setFeelings={setPulseFeelings}
-          contexts={pulseContexts} setContexts={setPulseContexts}
-          cfg={pulseCfg} setCfg={cfg => { setPulseCfg(cfg); savePulseConfig(cfg); }}
-        />
 
         <div className="form-2col">
           <div>
@@ -1297,6 +1280,7 @@ export default function WTTTApp() {
   const [testEntries,  setTestEntries]  = useState<TestEntry[]>([]);
   const [triumphData,  setTriumphData]  = useState<TriumphData>(EMPTY_TRIUMPH);
   const [testPrefill,  setTestPrefill]  = useState<{ sin: string; fromGoal: string } | null>(null);
+  const [moodEnergy,   setMoodEnergy]   = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const [treat, text, task, test, triumph] = await Promise.all([
@@ -1368,13 +1352,32 @@ export default function WTTTApp() {
               : <span>no entries yet</span>}
           </div>
         </div>
+        {/* ── Global mood strip ── */}
+        <div className="mood-strip">
+          <span className="mood-strip-lbl">⚡ Energy</span>
+          <div className="mood-btns">
+            {[1,2,3,4,5].map(n => (
+              <button
+                key={n}
+                className={`mood-btn${moodEnergy === n ? ` sel-${n}` : ""}`}
+                onClick={() => setMoodEnergy(moodEnergy === n ? null : n)}
+              >
+                <span className="mood-num">{n}</span>
+                <span className="mood-word-sm">{ENERGY_WORDS[n]}</span>
+              </button>
+            ))}
+          </div>
+          <span className="mood-status">
+            {moodEnergy ? ENERGY_WORDS[moodEnergy] : "—"}
+          </span>
+        </div>
       </div>
 
       <div className="main">
         {tab === "treat"   && <TreatTab onSaved={e => setTreatEntries(p => [e, ...p])} />}
         {tab === "text"    && <TextTab  onSaved={e => setTextEntries(p => [e, ...p])} />}
         {tab === "task"    && <TaskTab  onSaved={e => setTaskEntries(p => [e, ...p])} />}
-        {tab === "test"    && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} prefill={testPrefill} onClearPrefill={() => setTestPrefill(null)} />}
+        {tab === "test"    && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} prefill={testPrefill} onClearPrefill={() => setTestPrefill(null)} moodEnergy={moodEnergy} />}
         {tab === "triumph" && <TriumphTab data={syncedTriumph} onDataChange={setTriumphData} onFell={handleFell} />}
         {tab === "more"    && (
           <MoreTab
