@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, CSSProperties } from "react";
+import { useState, useEffect, useCallback, useRef, CSSProperties } from "react";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -760,8 +760,27 @@ function TriumphTab({ data, onDataChange, onFell }: {
   const [winText, setWinText] = useState("");
   const [savingGoal, setSavingGoal] = useState(false);
   const [savingWin, setSavingWin] = useState(false);
+  const [pressedGoal, setPressedGoal] = useState<TriumphGoal | null>(null); // action sheet
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  function startPress(goal: TriumphGoal) {
+    pressTimer.current = setTimeout(() => setPressedGoal(goal), 600);
+  }
+  function cancelPress() {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = null; }
+  }
+  function pressProps(goal: TriumphGoal) {
+    return {
+      onMouseDown:   () => startPress(goal),
+      onMouseUp:     cancelPress,
+      onMouseLeave:  cancelPress,
+      onTouchStart:  (e: React.TouchEvent) => { e.preventDefault(); startPress(goal); },
+      onTouchEnd:    cancelPress,
+      onTouchCancel: cancelPress,
+    };
+  }
 
   function doGoalDates(goal: TriumphGoal): string[] {
     if (goal.autoTab === "text")  return data.autoDates.text;
@@ -870,7 +889,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
           const done   = isDoneToday(goal);
           const isAuto = !!goal.autoTab;
           return (
-            <div key={goal.id} className={`do-goal${done ? " done-today" : ""}`}>
+            <div key={goal.id} className={`do-goal${done ? " done-today" : ""}`} {...pressProps(goal)}>
               <div className="do-goal-streak">
                 <span className="do-goal-fire">🔥</span>
                 <div className="do-goal-streak-num">{streak}</div>
@@ -896,7 +915,6 @@ function TriumphTab({ data, onDataChange, onFell }: {
               {isAuto && done && (
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: TAB_COLORS.triumph.color, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>✓</div>
               )}
-              <button className="do-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
             </div>
           );
         })}
@@ -931,8 +949,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
           const todayLogs = data.resistLogs.filter(l => l.goalId === goal.id && l.date === today);
           const todayOutcome = todayLogs.length > 0 ? todayLogs[todayLogs.length - 1].outcome : null;
           return (
-            <div key={goal.id} className="resist-goal">
-              <button className="resist-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
+            <div key={goal.id} className="resist-goal" {...pressProps(goal)}>
               <div className="resist-goal-hdr">
                 <div className="resist-goal-info">
                   <div className="resist-goal-name">{goal.icon} {goal.name}</div>
@@ -1094,6 +1111,24 @@ function TriumphTab({ data, onDataChange, onFell }: {
           </button>
         )}
       </div>
+
+      {/* ── Goal delete action sheet ── */}
+      {pressedGoal && (
+        <div className="goal-sheet-backdrop" onClick={() => setPressedGoal(null)}>
+          <div className="goal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="goal-sheet-title">{pressedGoal.icon} {pressedGoal.name}</div>
+            <button
+              className="goal-sheet-del"
+              onClick={() => { delGoal(pressedGoal.id); setPressedGoal(null); }}
+            >
+              🗑 Delete goal
+            </button>
+            <button className="goal-sheet-cancel" onClick={() => setPressedGoal(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

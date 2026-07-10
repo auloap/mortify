@@ -429,8 +429,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   font-size:1rem;flex-shrink:0;transition:all 0.2s;
 }
 .do-goal-check.checked{background:var(--triumph);border-color:var(--triumph);color:white;}
-.do-goal-del{position:absolute;top:7px;right:7px;background:none;border:none;cursor:pointer;font-size:0.55rem;color:var(--border);padding:2px 4px;}
-.do-goal-del:hover{color:var(--test);}
+/* long-press hint on goal cards */
+.do-goal,.resist-goal{user-select:none;-webkit-user-select:none;}
 
 /* Resist goal card */
 .resist-goal{
@@ -457,8 +457,37 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .resist-btn.skip:hover,.resist-btn.skip.sel{background:#888;color:white;border-color:#888;}
 .resist-btn.fell{color:#9b2c1a;border-color:#f0b8b0;background:#fbeae8;}
 .resist-btn.fell:hover,.resist-btn.fell.sel{background:#9b2c1a;color:white;border-color:#9b2c1a;}
-.resist-goal-del{position:absolute;top:7px;right:7px;background:none;border:none;cursor:pointer;font-size:0.55rem;color:var(--border);padding:2px 4px;}
-.resist-goal-del:hover{color:var(--test);}
+/* Goal delete action sheet */
+.goal-sheet-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;
+  display:flex;align-items:flex-end;justify-content:center;
+  animation:fadeIn 0.15s ease;
+}
+.goal-sheet{
+  background:#fff;border-radius:18px 18px 0 0;
+  padding:20px 20px 32px;width:100%;max-width:480px;
+  display:flex;flex-direction:column;gap:10px;
+  animation:slideUp 0.2s ease;
+}
+.goal-sheet-title{
+  font-size:0.8rem;font-weight:700;color:var(--ink);
+  text-align:center;padding-bottom:8px;
+  border-bottom:1px solid var(--border);margin-bottom:2px;
+}
+.goal-sheet-del{
+  padding:14px;border:none;border-radius:12px;
+  background:#fef2f2;color:#b91c1c;
+  font-family:'Inter',sans-serif;font-size:0.75rem;font-weight:700;
+  cursor:pointer;letter-spacing:0.02em;
+}
+.goal-sheet-del:active{background:#fee2e2;}
+.goal-sheet-cancel{
+  padding:14px;border:1.5px solid var(--border);border-radius:12px;
+  background:#fff;color:var(--muted);
+  font-family:'Inter',sans-serif;font-size:0.72rem;font-weight:600;
+  cursor:pointer;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 
 /* Wins log */
 .win-item{
