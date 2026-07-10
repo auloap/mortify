@@ -33,6 +33,11 @@ export async function ensureTables() {
       "aiPivot" TEXT DEFAULT ''
     )
   `;
+  // Add pulse columns to sin_entries if they don't exist yet
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseEnergy" INTEGER`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseFeelings" TEXT DEFAULT '[]'`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseContexts" TEXT DEFAULT '[]'`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS user_profile (
       id SERIAL PRIMARY KEY,

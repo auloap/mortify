@@ -16,13 +16,18 @@ export async function GET() {
   const sql = getSql();
   const rows = await sql`SELECT * FROM sin_entries ORDER BY date DESC`;
   return NextResponse.json(
-    rows.map((r) => ({ ...r, emotions: JSON.parse((r.emotions as string) || "[]") }))
+    rows.map((r) => ({
+      ...r,
+      emotions:      JSON.parse((r.emotions      as string) || "[]"),
+      pulseFeelings: JSON.parse((r.pulseFeelings as string) || "[]"),
+      pulseContexts: JSON.parse((r.pulseContexts as string) || "[]"),
+    }))
   );
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { sin, emotions = [], situation, counterfeit, postMortem, journal } = body;
+  const { sin, emotions = [], situation, counterfeit, postMortem, journal, pulseEnergy, pulseFeelings = [], pulseContexts = [] } = body;
 
   if (!sin) {
     return NextResponse.json({ error: "sin is required" }, { status: 400 });
@@ -74,10 +79,15 @@ export async function POST(req: NextRequest) {
 
   const date = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO sin_entries (date, sin, emotions, situation, counterfeit, "postMortem", journal, "aiReflection", "aiPivot")
-    VALUES (${date}, ${sin}, ${JSON.stringify(emotions)}, ${situation ?? ""}, ${counterfeit ?? ""}, ${postMortem ?? ""}, ${journal ?? ""}, ${aiReflection}, ${aiPivot})
+    INSERT INTO sin_entries (date, sin, emotions, situation, counterfeit, "postMortem", journal, "aiReflection", "aiPivot", "pulseEnergy", "pulseFeelings", "pulseContexts")
+    VALUES (${date}, ${sin}, ${JSON.stringify(emotions)}, ${situation ?? ""}, ${counterfeit ?? ""}, ${postMortem ?? ""}, ${journal ?? ""}, ${aiReflection}, ${aiPivot}, ${pulseEnergy ?? null}, ${JSON.stringify(pulseFeelings)}, ${JSON.stringify(pulseContexts)})
     RETURNING *
   `;
   const row = rows[0] as Record<string, unknown>;
-  return NextResponse.json({ ...row, emotions: JSON.parse((row.emotions as string) || "[]") });
+  return NextResponse.json({
+    ...row,
+    emotions:      JSON.parse((row.emotions      as string) || "[]"),
+    pulseFeelings: JSON.parse((row.pulseFeelings as string) || "[]"),
+    pulseContexts: JSON.parse((row.pulseContexts as string) || "[]"),
+  });
 }

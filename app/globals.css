@@ -218,6 +218,73 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   animation:fadeIn 0.3s ease;border-radius:999px;box-shadow:0 4px 16px var(--shadow-md);
 }
 
+/* ── Pulse (Test tab micro-capture) ── */
+.pulse-block{
+  background:var(--test-light);border:1.5px solid var(--test-border);
+  border-radius:10px;padding:12px 13px;margin-bottom:13px;
+}
+.pulse-lbl{
+  font-size:0.52rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--test);margin-bottom:10px;display:flex;align-items:center;gap:6px;
+}
+.pulse-lbl::after{content:'';flex:1;height:1px;background:var(--test-border);}
+.pulse-section{margin-bottom:9px;}
+.pulse-section-lbl{
+  font-size:0.5rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
+  color:#b07070;margin-bottom:5px;
+}
+.pulse-hint{font-size:0.48rem;font-weight:400;text-transform:none;letter-spacing:0;color:var(--subtle);margin-left:5px;}
+
+/* Energy buttons */
+.energy-row{display:flex;gap:5px;margin-bottom:0;}
+.energy-btn{
+  flex:1;padding:7px 2px;border:1.5px solid var(--test-border);border-radius:7px;
+  background:#fff;text-align:center;cursor:pointer;transition:all 0.15s;
+  font-family:'Inter',sans-serif;
+}
+.energy-num{font-size:0.9rem;font-weight:700;color:#ccc;display:block;line-height:1;margin-bottom:2px;}
+.energy-word{font-size:0.42rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#ccc;}
+.energy-btn.sel{background:var(--test-light);border-color:var(--test);}
+.energy-btn.sel .energy-num,.energy-btn.sel .energy-word{color:var(--test);}
+
+/* Pulse chips */
+.pulse-chips{display:flex;flex-wrap:wrap;gap:5px;}
+.pulse-chip{
+  font-size:0.58rem;font-weight:500;padding:4px 10px;
+  border:1.5px solid var(--test-border);border-radius:999px;
+  background:#fff;color:#b07070;
+  cursor:pointer;transition:all 0.15s;font-family:'Inter',sans-serif;
+}
+.pulse-chip:hover{border-color:var(--test);color:var(--test);}
+.pulse-chip.sel{background:var(--test);border-color:var(--test);color:#fff;}
+.pulse-chip.pending{border-style:dashed;border-color:#c09090;color:#9b6060;background:#fff8f7;}
+.pulse-chip.pending sup{font-size:0.45rem;vertical-align:super;margin-left:1px;color:#c09090;}
+.pulse-chip.pending.sel{background:#c06050;border-color:#c06050;border-style:solid;color:#fff;}
+.pulse-chip.pending.sel sup{color:rgba(255,255,255,0.7);}
+.pulse-chip.graduated{border-color:var(--test);color:var(--test);background:#fff;}
+.pulse-chip.graduated.sel{background:var(--test);border-color:var(--test);color:#fff;}
+.pulse-chip.other-btn{border-style:dashed;border-color:#ddd;color:#aaa;background:#fafafa;}
+.pulse-chip.other-btn:hover{border-color:#999;color:#666;}
+
+/* Other input */
+.other-input-row{display:flex;gap:5px;width:100%;margin-top:2px;align-items:center;}
+.other-input{
+  flex:1;font-family:'Inter',sans-serif;font-size:0.7rem;
+  padding:5px 11px;border:1.5px solid var(--test-border);border-radius:999px;
+  background:#fff;color:var(--ink);outline:none;
+}
+.other-input:focus{border-color:var(--test);}
+.other-add{
+  font-size:0.58rem;font-weight:700;padding:5px 12px;
+  background:var(--test);color:#fff;border:none;border-radius:999px;cursor:pointer;
+  font-family:'Inter',sans-serif;white-space:nowrap;
+}
+.other-cancel{
+  font-size:0.7rem;padding:4px 8px;background:none;
+  border:1.5px solid var(--border);border-radius:999px;cursor:pointer;
+  color:var(--muted);font-family:'Inter',sans-serif;line-height:1;
+}
+
 /* ── Mobile ── */
 @media(max-width:500px){
   .form-2col{grid-template-columns:1fr;}

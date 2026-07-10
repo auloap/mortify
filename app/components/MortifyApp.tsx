@@ -19,6 +19,51 @@ const SINS = ["Pride","Lust","Anger","Envy","Sloth","Gluttony","Greed","Bitterne
 const BOOKS = ["Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel","1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs","Ecclesiastes","Song of Solomon","Isaiah","Jeremiah","Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos","Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah","Haggai","Zechariah","Malachi","Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians","Galatians","Ephesians","Philippians","Colossians","1 Thessalonians","2 Thessalonians","1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"];
 const STRONGHOLD = 4;
 
+// ── Pulse chip system ──────────────────────────────────────────────────────
+
+const DEFAULT_FEELINGS = ["Anxious","Lonely","Angry","Tired","Tempted","Restless","Sad","Frustrated","Bored","Numb"];
+const DEFAULT_CONTEXTS = ["Alone","Late night","Work stress","Spouse tension","After a fight","Scrolling phone","Post-sleep","Travelling","After a win","Bored at home"];
+const ENERGY_WORDS = ["","Drained","Low","Okay","Good","Sharp"];
+const PULSE_KEY = "wttt_pulse_cfg";
+const PRUNE_AFTER = 10; // start removing unused defaults after this many submissions
+
+type ChipItem   = { label: string; count: number; isDefault: boolean; isPending: boolean };
+type PulseConfig = { feelings: ChipItem[]; contexts: ChipItem[]; total: number };
+
+function defaultPulseConfig(): PulseConfig {
+  return {
+    feelings: DEFAULT_FEELINGS.map(label => ({ label, count: 0, isDefault: true, isPending: false })),
+    contexts: DEFAULT_CONTEXTS.map(label => ({ label, count: 0, isDefault: true, isPending: false })),
+    total: 0,
+  };
+}
+function loadPulseConfig(): PulseConfig {
+  if (typeof window === "undefined") return defaultPulseConfig();
+  try { const s = localStorage.getItem(PULSE_KEY); return s ? JSON.parse(s) : defaultPulseConfig(); }
+  catch { return defaultPulseConfig(); }
+}
+function savePulseConfig(cfg: PulseConfig) {
+  try { localStorage.setItem(PULSE_KEY, JSON.stringify(cfg)); } catch {}
+}
+function commitPulse(cfg: PulseConfig, selF: string[], selC: string[]): PulseConfig {
+  const total = cfg.total + 1;
+  function upd(chips: ChipItem[], sel: string[]): ChipItem[] {
+    return chips
+      .map(c => {
+        if (!sel.includes(c.label)) return c;
+        const count = c.count + 1;
+        return { ...c, count, isPending: count >= 2 ? false : c.isPending };
+      })
+      .filter(c => total < PRUNE_AFTER || !c.isDefault || c.count > 0);
+  }
+  return { feelings: upd(cfg.feelings, selF), contexts: upd(cfg.contexts, selC), total };
+}
+function addCustomChip(cfg: PulseConfig, field: "feelings" | "contexts", raw: string): PulseConfig {
+  const label = raw.trim();
+  if (!label || cfg[field].some(c => c.label.toLowerCase() === label.toLowerCase())) return cfg;
+  return { ...cfg, [field]: [...cfg[field], { label, count: 0, isDefault: false, isPending: true }] };
+}
+
 const TAB_COLORS: Record<string, { color: string; light: string; border: string }> = {
   treat: { color: "#d4890a", light: "#fef7e8", border: "#f5d9a0" },
   text:  { color: "#1a7a50", light: "#e8f5ee", border: "#a8d9bf" },
@@ -34,7 +79,7 @@ type HistoryView = "treat" | "text" | "task" | "test";
 interface TreatEntry   { id: number; date: string; gratitude: string; aiReflection: string; }
 interface TextEntry    { id: number; date: string; book: string; passage: string; aboutGod: string; aboutSelf: string; apply: string; prayer: string; aiReflection: string; }
 interface TaskEntry    { id: number; date: string; task: string; obstacle: string; aiReflection: string; }
-interface TestEntry    { id: number; date: string; sin: string; emotions: string[]; situation: string; counterfeit: string; postMortem: string; journal: string; aiReflection: string; aiPivot: string; }
+interface TestEntry    { id: number; date: string; sin: string; emotions: string[]; situation: string; counterfeit: string; postMortem: string; journal: string; aiReflection: string; aiPivot: string; pulseEnergy?: number; pulseFeelings?: string[]; pulseContexts?: string[]; }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -141,6 +186,111 @@ function EmoPicker({ selected, openGroups, onToggle, onToggleGroup, onClear }: {
           <button className="emo-clear" onClick={onClear}>clear all</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── PulsePicker ────────────────────────────────────────────────────────────
+
+function PulsePicker({ energy, setEnergy, feelings, setFeelings, contexts, setContexts, cfg, setCfg }: {
+  energy: number | null; setEnergy: (n: number) => void;
+  feelings: string[]; setFeelings: (f: string[]) => void;
+  contexts: string[]; setContexts: (c: string[]) => void;
+  cfg: PulseConfig; setCfg: (c: PulseConfig) => void;
+}) {
+  const [showOtherF, setShowOtherF] = useState(false);
+  const [showOtherC, setShowOtherC] = useState(false);
+  const [otherF, setOtherF] = useState("");
+  const [otherC, setOtherC] = useState("");
+
+  function toggle(arr: string[], set: (a: string[]) => void, label: string) {
+    set(arr.includes(label) ? arr.filter(x => x !== label) : [...arr, label]);
+  }
+
+  function commitOther(
+    field: "feelings" | "contexts", raw: string,
+    arr: string[], set: (a: string[]) => void,
+    setInput: (s: string) => void, setShow: (b: boolean) => void
+  ) {
+    const t = raw.trim();
+    if (!t) { setShow(false); return; }
+    const newCfg = addCustomChip(cfg, field, t);
+    setCfg(newCfg); savePulseConfig(newCfg);
+    if (!arr.includes(t)) set([...arr, t]);
+    setInput(""); setShow(false);
+  }
+
+  function chipCls(chip: ChipItem, sel: string[]) {
+    const on = sel.includes(chip.label);
+    if (chip.isPending) return `pulse-chip pending${on ? " sel" : ""}`;
+    if (!chip.isDefault) return `pulse-chip graduated${on ? " sel" : ""}`;
+    return `pulse-chip${on ? " sel" : ""}`;
+  }
+
+  return (
+    <div className="pulse-block">
+      <div className="pulse-lbl">⚡ Pulse right now</div>
+
+      {/* Energy */}
+      <div className="pulse-section">
+        <div className="pulse-section-lbl">Energy</div>
+        <div className="energy-row">
+          {[1,2,3,4,5].map(n => (
+            <button key={n} className={`energy-btn${energy === n ? " sel" : ""}`} onClick={() => setEnergy(n)}>
+              <span className="energy-num">{n}</span>
+              <span className="energy-word">{ENERGY_WORDS[n]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Feelings */}
+      <div className="pulse-section">
+        <div className="pulse-section-lbl">Feeling <span className="pulse-hint">pick all that apply</span></div>
+        <div className="pulse-chips">
+          {cfg.feelings.map(chip => (
+            <button key={chip.label} className={chipCls(chip, feelings)} onClick={() => toggle(feelings, setFeelings, chip.label)}>
+              {chip.label}{chip.isPending && <sup>¹</sup>}
+            </button>
+          ))}
+          {showOtherF ? (
+            <div className="other-input-row">
+              <input className="other-input" value={otherF} autoFocus
+                onChange={e => setOtherF(e.target.value)} placeholder="e.g. Shame"
+                onKeyDown={e => { if (e.key === "Enter") commitOther("feelings", otherF, feelings, setFeelings, setOtherF, setShowOtherF); if (e.key === "Escape") { setShowOtherF(false); setOtherF(""); } }}
+              />
+              <button className="other-add" onClick={() => commitOther("feelings", otherF, feelings, setFeelings, setOtherF, setShowOtherF)}>Add</button>
+              <button className="other-cancel" onClick={() => { setShowOtherF(false); setOtherF(""); }}>✕</button>
+            </div>
+          ) : (
+            <button className="pulse-chip other-btn" onClick={() => setShowOtherF(true)}>+ Other</button>
+          )}
+        </div>
+      </div>
+
+      {/* Contexts */}
+      <div className="pulse-section" style={{ marginBottom: 0 }}>
+        <div className="pulse-section-lbl">Context <span className="pulse-hint">what&apos;s going on?</span></div>
+        <div className="pulse-chips">
+          {cfg.contexts.map(chip => (
+            <button key={chip.label} className={chipCls(chip, contexts)} onClick={() => toggle(contexts, setContexts, chip.label)}>
+              {chip.label}{chip.isPending && <sup>¹</sup>}
+            </button>
+          ))}
+          {showOtherC ? (
+            <div className="other-input-row">
+              <input className="other-input" value={otherC} autoFocus
+                onChange={e => setOtherC(e.target.value)} placeholder="e.g. Can&apos;t sleep"
+                onKeyDown={e => { if (e.key === "Enter") commitOther("contexts", otherC, contexts, setContexts, setOtherC, setShowOtherC); if (e.key === "Escape") { setShowOtherC(false); setOtherC(""); } }}
+              />
+              <button className="other-add" onClick={() => commitOther("contexts", otherC, contexts, setContexts, setOtherC, setShowOtherC)}>Add</button>
+              <button className="other-cancel" onClick={() => { setShowOtherC(false); setOtherC(""); }}>✕</button>
+            </div>
+          ) : (
+            <button className="pulse-chip other-btn" onClick={() => setShowOtherC(true)}>+ Other</button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -331,6 +481,13 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
   const [aiReflection, setAiReflection] = useState("");
   const [aiPivot, setAiPivot] = useState("");
 
+  // Pulse state
+  const [pulseEnergy, setPulseEnergy] = useState<number | null>(null);
+  const [pulseFeelings, setPulseFeelings] = useState<string[]>([]);
+  const [pulseContexts, setPulseContexts] = useState<string[]>([]);
+  const [pulseCfg, setPulseCfg] = useState<PulseConfig>(defaultPulseConfig);
+  useEffect(() => { setPulseCfg(loadPulseConfig()); }, []);
+
   const toggleEmo = (em: string) => setEmotions(p => p.includes(em) ? p.filter(x => x !== em) : [...p, em]);
   const toggleGroup = (f: string) => setOpenGroups(p => ({ ...p, [f]: !p[f] }));
 
@@ -341,12 +498,18 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
     try {
       const res = await fetch("/api/sin", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sin: resolvedSin, emotions, situation, counterfeit, postMortem, journal }),
+        body: JSON.stringify({ sin: resolvedSin, emotions, situation, counterfeit, postMortem, journal, pulseEnergy, pulseFeelings, pulseContexts }),
       });
       const entry: TestEntry = await res.json();
       setAiReflection(entry.aiReflection); setAiPivot(entry.aiPivot);
       onSaved(entry);
+
+      // Update adaptive chip config in localStorage
+      const newCfg = commitPulse(pulseCfg, pulseFeelings, pulseContexts);
+      setPulseCfg(newCfg); savePulseConfig(newCfg);
+
       setSin(""); setCustom(""); setEmotions([]); setSituation(""); setCounterfeit(""); setPostMortem(""); setJournal("");
+      setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
       showToast("Entry saved ⚔", TAB_COLORS.test.color);
     } catch { setAiReflection("Could not save. Please try again."); }
     setBusy(false);
@@ -356,7 +519,15 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
     <div style={tabVars("test")}>
       <p className="section-desc">Where did sin get a foothold today? Examine the heart — with hope, not shame.</p>
       <div className="card">
-        <div className="card-lbl">Identify the Sin</div>
+        <div className="card-lbl">The Struggle</div>
+
+        <PulsePicker
+          energy={pulseEnergy} setEnergy={setPulseEnergy}
+          feelings={pulseFeelings} setFeelings={setPulseFeelings}
+          contexts={pulseContexts} setContexts={setPulseContexts}
+          cfg={pulseCfg} setCfg={cfg => { setPulseCfg(cfg); savePulseConfig(cfg); }}
+        />
+
         <div className="form-2col">
           <div>
             <label>The sin</label>
@@ -526,6 +697,14 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
                 </div>
                 <div className="entry-date">{fmt(e.date)}</div>
               </div>
+              {/* Pulse snapshot */}
+              {(e.pulseEnergy || (e.pulseFeelings?.length ?? 0) > 0 || (e.pulseContexts?.length ?? 0) > 0) && (
+                <div style={{ display:"flex", gap:4, flexWrap:"wrap", alignItems:"center", marginBottom:6 }}>
+                  {e.pulseEnergy && <span style={{ fontSize:"0.5rem", fontWeight:700, background:"#fbeae8", color:"#9b2c1a", border:"1px solid #f0b8b0", borderRadius:999, padding:"2px 7px" }}>⚡ {e.pulseEnergy}/5</span>}
+                  {e.pulseFeelings?.map(f => <span key={f} style={{ fontSize:"0.5rem", fontWeight:500, background:"#fbeae8", color:"#9b2c1a", border:"1px solid #f0b8b0", borderRadius:999, padding:"2px 7px" }}>{f}</span>)}
+                  {e.pulseContexts?.map(c => <span key={c} style={{ fontSize:"0.5rem", fontWeight:500, background:"#f5f5f5", color:"#666", border:"1px solid #e5e5e5", borderRadius:999, padding:"2px 7px" }}>{c}</span>)}
+                </div>
+              )}
               {e.emotions?.length > 0 && <div className="entry-chips">{e.emotions.map(em => <span className="entry-chip" key={em}>{em}</span>)}</div>}
               {e.situation && <div className="ef"><div className="ef-lbl">Situation</div><div className="ef-val">{e.situation}</div></div>}
               {e.counterfeit && <div className="ef"><div className="ef-lbl">Counterfeit promise</div><div className="ef-val">{e.counterfeit}</div></div>}
