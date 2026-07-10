@@ -127,7 +127,26 @@ export async function ensureTables() {
     )
   `;
 
-  // Seed default Do goals — only once ever (flag survives deletion of goals)
+  // Deduplicate: if old + new seeds both ran, keep only the earliest row per autoTab
+  await sql`
+    DELETE FROM triumph_goals
+    WHERE "autoTab" IN ('text', 'treat', 'task')
+      AND id NOT IN (
+        SELECT MIN(id) FROM triumph_goals
+        WHERE "autoTab" IN ('text', 'treat', 'task')
+        GROUP BY "autoTab"
+      )
+  `;
+
+  // If default goals already exist (any seed path), mark seeded so we never re-insert
+  await sql`
+    INSERT INTO app_flags (key, value)
+    SELECT 'triumph_defaults_seeded', 'true'
+    WHERE EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" IN ('text', 'treat', 'task'))
+    ON CONFLICT (key) DO NOTHING
+  `;
+
+  // Only seed on a truly fresh install (no defaults and no flag)
   const flagCheck = await sql`SELECT 1 FROM app_flags WHERE key = 'triumph_defaults_seeded'`;
   if (flagCheck.length === 0) {
     const now = new Date().toISOString();
