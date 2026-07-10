@@ -3,6 +3,7 @@ import {
   BASE_QT_INSTRUCTION,
   BASE_MORTIFICATION_INSTRUCTION,
   BASE_PIVOT_INSTRUCTION,
+  BASE_VICTORY_INSTRUCTION,
 } from "./prompts/base-pastoral";
 
 export interface UserProfile {
@@ -26,6 +27,14 @@ export interface SinContext {
   counterfeit: string;
   postMortem: string;
   journal?: string;
+}
+
+export interface VictoryContext {
+  sin: string;
+  emotions: string[];
+  situation: string;
+  whatHelped: string;
+  howFeeling: string[];
 }
 
 function profileSection(profile: UserProfile): string {
@@ -69,6 +78,21 @@ export function buildMortificationUserMessage(ctx: SinContext): string {
 - Counterfeit satisfaction: ${ctx.counterfeit}
 - Post-mortem cost: ${ctx.postMortem}
 - Journal: ${ctx.journal || "(none)"}`;
+}
+
+// --- Sin: Victory Debrief ---
+
+export function buildVictorySystem(profile: UserProfile): string {
+  return `${BASE_VICTORY_INSTRUCTION}${profileSection(profile)}`;
+}
+
+export function buildVictoryUserMessage(ctx: VictoryContext): string {
+  return `Victory entry:
+- Temptation faced: ${ctx.sin}
+- Emotional state during: ${ctx.emotions.join(", ") || "(not noted)"}
+- Situation: ${ctx.situation || "(not noted)"}
+- What helped them win: ${ctx.whatHelped || "(not noted)"}
+- How they feel now: ${ctx.howFeeling.join(", ") || "(not noted)"}`;
 }
 
 // --- Sin: Gospel Pivot ---

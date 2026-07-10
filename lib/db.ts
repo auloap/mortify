@@ -37,6 +37,11 @@ export async function ensureTables() {
   await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseEnergy" INTEGER`;
   await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseFeelings" TEXT DEFAULT '[]'`;
   await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "pulseContexts" TEXT DEFAULT '[]'`;
+  // Add win/loss outcome columns
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS outcome TEXT DEFAULT 'fell'`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "whatHelped" TEXT DEFAULT ''`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "howFeeling" TEXT DEFAULT '[]'`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "aiVictory" TEXT DEFAULT ''`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS user_profile (

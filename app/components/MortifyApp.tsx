@@ -18,6 +18,7 @@ const EMOTION_GROUPS = [
 const SINS = ["Pride","Lust","Anger","Envy","Sloth","Gluttony","Greed","Bitterness","Deceit","Fear/Unbelief","Control","Self-pity","Other"];
 const BOOKS = ["Genesis","Exodus","Leviticus","Numbers","Deuteronomy","Joshua","Judges","Ruth","1 Samuel","2 Samuel","1 Kings","2 Kings","1 Chronicles","2 Chronicles","Ezra","Nehemiah","Esther","Job","Psalms","Proverbs","Ecclesiastes","Song of Solomon","Isaiah","Jeremiah","Lamentations","Ezekiel","Daniel","Hosea","Joel","Amos","Obadiah","Jonah","Micah","Nahum","Habakkuk","Zephaniah","Haggai","Zechariah","Malachi","Matthew","Mark","Luke","John","Acts","Romans","1 Corinthians","2 Corinthians","Galatians","Ephesians","Philippians","Colossians","1 Thessalonians","2 Thessalonians","1 Timothy","2 Timothy","Titus","Philemon","Hebrews","James","1 Peter","2 Peter","1 John","2 John","3 John","Jude","Revelation"];
 const STRONGHOLD = 4;
+const WIN_FEELINGS = ["Grateful","Relieved","Peaceful","Proud","Still shaky","Hopeful","Joyful","Tired"];
 
 // ── Pulse chip system ──────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ interface TriumphData  { goals: TriumphGoal[]; doLogs: DoLog[]; resistLogs: Resi
 interface TreatEntry   { id: number; date: string; gratitude: string; aiReflection: string; }
 interface TextEntry    { id: number; date: string; book: string; passage: string; aboutGod: string; aboutSelf: string; apply: string; prayer: string; aiReflection: string; }
 interface TaskEntry    { id: number; date: string; task: string; obstacle: string; aiReflection: string; }
-interface TestEntry    { id: number; date: string; sin: string; emotions: string[]; situation: string; counterfeit: string; postMortem: string; journal: string; aiReflection: string; aiPivot: string; pulseEnergy?: number; pulseFeelings?: string[]; pulseContexts?: string[]; }
+interface TestEntry    { id: number; date: string; sin: string; emotions: string[]; situation: string; counterfeit: string; postMortem: string; journal: string; aiReflection: string; aiPivot: string; pulseEnergy?: number; pulseFeelings?: string[]; pulseContexts?: string[]; outcome?: "won" | "fell"; whatHelped?: string; howFeeling?: string[]; aiVictory?: string; }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -121,12 +122,20 @@ function getAnalytics(textEntries: TextEntry[], testEntries: TestEntry[]) {
   const sinCounts: Record<string, number> = {};
   const emoCounts: Record<string, number> = {};
   const bookCounts: Record<string, number> = {};
+  // Win-rate per sin
+  const sinWins: Record<string, number> = {};
   testEntries.forEach(e => {
     sinCounts[e.sin] = (sinCounts[e.sin] || 0) + 1;
+    if (e.outcome === "won") sinWins[e.sin] = (sinWins[e.sin] || 0) + 1;
     (e.emotions || []).forEach(em => { emoCounts[em] = (emoCounts[em] || 0) + 1; });
   });
   textEntries.forEach(e => { bookCounts[e.book] = (bookCounts[e.book] || 0) + 1; });
-  const strongholds = Object.entries(sinCounts).filter(([, c]) => c >= STRONGHOLD).map(([s]) => s);
+  // Strongholds: sins with high loss count (fell ≥ STRONGHOLD)
+  const lostCounts: Record<string, number> = {};
+  testEntries.filter(e => e.outcome !== "won").forEach(e => {
+    lostCounts[e.sin] = (lostCounts[e.sin] || 0) + 1;
+  });
+  const strongholds = Object.entries(lostCounts).filter(([, c]) => c >= STRONGHOLD).map(([s]) => s);
   const topSins  = Object.entries(sinCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const topEmo   = Object.entries(emoCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const topBooks = Object.entries(bookCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -139,7 +148,10 @@ function getAnalytics(textEntries: TextEntry[], testEntries: TestEntry[]) {
     const diff = Math.round((Date.now() - new Date(days[i]).getTime()) / 86400000);
     if (diff === i || diff === i + 1) streak++; else break;
   }
-  return { sinCounts, strongholds, topSins, topEmo, topBooks, maxSin, maxEmo, maxBook, streak };
+  const totalTests = testEntries.length;
+  const totalWins  = testEntries.filter(e => e.outcome === "won").length;
+  const winRate    = totalTests > 0 ? Math.round((totalWins / totalTests) * 100) : null;
+  return { sinCounts, sinWins, lostCounts, strongholds, topSins, topEmo, topBooks, maxSin, maxEmo, maxBook, streak, totalTests, totalWins, winRate };
 }
 
 // ── EmoPicker ──────────────────────────────────────────────────────────────
@@ -484,21 +496,25 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
   const [custom, setCustom] = useState("");
   const [emotions, setEmotions] = useState<string[]>([]);
   const [situation, setSituation] = useState("");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Outcome
+  const [outcome, setOutcome] = useState<"won" | "fell" | null>(null);
+
+  // Win path
+  const [whatHelped, setWhatHelped] = useState("");
+  const [howFeeling, setHowFeeling] = useState<string[]>([]);
+
+  // Loss path
   const [counterfeit, setCounterfeit] = useState("");
   const [postMortem, setPostMortem] = useState("");
   const [journal, setJournal] = useState("");
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // AI responses
   const [busy, setBusy] = useState(false);
+  const [aiVictory, setAiVictory] = useState("");
   const [aiReflection, setAiReflection] = useState("");
   const [aiPivot, setAiPivot] = useState("");
-
-  // Apply prefill from "Fell →" flow
-  useEffect(() => {
-    if (prefill?.sin) {
-      setSin(SINS.includes(prefill.sin) ? prefill.sin : "Other");
-      if (!SINS.includes(prefill.sin)) setCustom(prefill.sin);
-    }
-  }, [prefill]);
 
   // Pulse state
   const [pulseEnergy, setPulseEnergy] = useState<number | null>(null);
@@ -507,37 +523,74 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
   const [pulseCfg, setPulseCfg] = useState<PulseConfig>(defaultPulseConfig);
   useEffect(() => { setPulseCfg(loadPulseConfig()); }, []);
 
+  // Apply prefill from "Fell →" flow
+  useEffect(() => {
+    if (prefill?.sin) {
+      setSin(SINS.includes(prefill.sin) ? prefill.sin : "Other");
+      if (!SINS.includes(prefill.sin)) setCustom(prefill.sin);
+      setOutcome("fell");
+    }
+  }, [prefill]);
+
   const toggleEmo = (em: string) => setEmotions(p => p.includes(em) ? p.filter(x => x !== em) : [...p, em]);
   const toggleGroup = (f: string) => setOpenGroups(p => ({ ...p, [f]: !p[f] }));
+  const toggleFeeling = (f: string) => setHowFeeling(p => p.includes(f) ? p.filter(x => x !== f) : [...p, f]);
+
+  function reset() {
+    setSin(""); setCustom(""); setEmotions([]); setSituation(""); setOutcome(null);
+    setWhatHelped(""); setHowFeeling([]);
+    setCounterfeit(""); setPostMortem(""); setJournal("");
+    setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
+    setAiVictory(""); setAiReflection(""); setAiPivot("");
+    onClearPrefill?.();
+  }
 
   async function submit() {
-    if (!sin || busy) return;
-    setBusy(true); setAiReflection(""); setAiPivot("");
+    if (!sin || !outcome || busy) return;
+    setBusy(true); setAiVictory(""); setAiReflection(""); setAiPivot("");
     const resolvedSin = sin === "Other" ? (custom || "Other") : sin;
     try {
       const res = await fetch("/api/sin", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sin: resolvedSin, emotions, situation, counterfeit, postMortem, journal, pulseEnergy, pulseFeelings, pulseContexts }),
+        body: JSON.stringify({
+          sin: resolvedSin, emotions, situation, outcome,
+          whatHelped, howFeeling,
+          counterfeit, postMortem, journal,
+          pulseEnergy, pulseFeelings, pulseContexts,
+        }),
       });
       const entry: TestEntry = await res.json();
-      setAiReflection(entry.aiReflection); setAiPivot(entry.aiPivot);
+      if (outcome === "won") setAiVictory(entry.aiVictory || "");
+      else { setAiReflection(entry.aiReflection); setAiPivot(entry.aiPivot); }
       onSaved(entry);
 
-      // Update adaptive chip config in localStorage
+      // Update adaptive pulse config
       const newCfg = commitPulse(pulseCfg, pulseFeelings, pulseContexts);
       setPulseCfg(newCfg); savePulseConfig(newCfg);
 
-      setSin(""); setCustom(""); setEmotions([]); setSituation(""); setCounterfeit(""); setPostMortem(""); setJournal("");
+      // Clear form but keep AI response visible
+      setSin(""); setCustom(""); setEmotions([]); setSituation(""); setOutcome(null);
+      setWhatHelped(""); setHowFeeling([]);
+      setCounterfeit(""); setPostMortem(""); setJournal("");
       setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
       onClearPrefill?.();
-      showToast("Entry saved ⚔", TAB_COLORS.test.color);
-    } catch { setAiReflection("Could not save. Please try again."); }
+      showToast(outcome === "won" ? "Victory logged 🏆" : "Entry saved ⚔", TAB_COLORS.test.color);
+    } catch {
+      setAiReflection("Could not save. Please try again.");
+    }
     setBusy(false);
   }
 
+  const canSubmit = !!sin && !!outcome && !busy;
+  const submitLabel = busy
+    ? (outcome === "won" ? "Logging the victory…" : "Examining the heart…")
+    : !outcome ? "Mark the outcome above first"
+    : outcome === "won" ? "Log the Victory →"
+    : "Mortify & Find the Satisfy →";
+
   return (
     <div style={tabVars("test")}>
-      <p className="section-desc">Where did sin get a foothold today? Examine the heart — with hope, not shame.</p>
+      <p className="section-desc">Record the temptation — win or loss. Every encounter builds your pattern.</p>
 
       {prefill && (
         <div className="fell-banner">
@@ -546,12 +599,13 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
             <div className="fell-banner-ttl">Fell on: {prefill.fromGoal}</div>
             <div className="fell-banner-txt">Log it. Name it. Bring it to the light.</div>
           </div>
-          <button className="fell-banner-close" onClick={onClearPrefill}>✕</button>
+          <button className="fell-banner-close" onClick={() => { onClearPrefill?.(); setOutcome(null); }}>✕</button>
         </div>
       )}
 
       <div className="card">
-        <div className="card-lbl">The Struggle</div>
+        {/* ── Stage 1: The Temptation ── */}
+        <div className="card-lbl">The Temptation</div>
 
         <PulsePicker
           energy={pulseEnergy} setEnergy={setPulseEnergy}
@@ -562,7 +616,7 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
 
         <div className="form-2col">
           <div>
-            <label>The sin</label>
+            <label>Temptation / sin type</label>
             <select value={sin} onChange={e => setSin(e.target.value)}>
               <option value="">— Select —</option>
               {SINS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -575,27 +629,100 @@ function TestTab({ onSaved, prefill, onClearPrefill }: {
             </div>
           ) : <div />}
         </div>
+
         <EmoPicker selected={emotions} openGroups={openGroups} onToggle={toggleEmo} onToggleGroup={toggleGroup} onClear={() => setEmotions([])} />
-        <div className="card-lbl" style={{ marginTop: 4 }}>Anatomy of the Sin</div>
-        <div className="form-2col">
-          <div><label>Situation / trigger</label>
-            <textarea value={situation} onChange={e => setSituation(e.target.value)} placeholder="What was happening? Who was there?" /></div>
-          <div><label>What it promised (counterfeit)</label>
-            <textarea value={counterfeit} onChange={e => setCounterfeit(e.target.value)} placeholder="What relief or control did you expect?" /></div>
-          <div><label>What it actually cost</label>
-            <textarea value={postMortem} onChange={e => setPostMortem(e.target.value)} placeholder="Guilt, numbness, distance from God…" /></div>
-          <div><label>Free journal <span className="hint">optional</span></label>
-            <textarea value={journal} onChange={e => setJournal(e.target.value)} placeholder="Confess, reflect, ask…" /></div>
+
+        <div className="form-row">
+          <label>Situation / trigger <span className="hint">optional</span></label>
+          <textarea value={situation} onChange={e => setSituation(e.target.value)}
+            placeholder="What was happening? Who was there? What set it off?" rows={2} style={{ minHeight: 52 }} />
         </div>
-        <button className="btn" onClick={submit} disabled={!sin || busy}>
-          {busy ? "Examining the heart…" : "Mortify & Find the Satisfy →"}
+
+        {/* ── Stage 2: Outcome ── */}
+        <div className="outcome-hdr">How did it go?</div>
+        <div className="outcome-row">
+          <button className={`outcome-btn won${outcome === "won" ? " sel" : ""}`} onClick={() => setOutcome("won")}>
+            <span className="outcome-icon">🏆</span>
+            <span className="outcome-lbl">Won it</span>
+          </button>
+          <button className={`outcome-btn fell${outcome === "fell" ? " sel" : ""}`} onClick={() => setOutcome("fell")}>
+            <span className="outcome-icon">⚔</span>
+            <span className="outcome-lbl">Lost it</span>
+          </button>
+        </div>
+
+        {/* ── Win path ── */}
+        {outcome === "won" && (
+          <>
+            <div className="card-lbl" style={{ marginTop: 14 }}>The Victory</div>
+            <div className="form-row">
+              <div className="prompt-box" style={{ background: "#e8f5ee", color: "#1a7a50", borderLeftColor: "#1a7a50" }}>
+                What helped you win?
+              </div>
+              <textarea value={whatHelped} onChange={e => setWhatHelped(e.target.value)}
+                placeholder="Prayer, called a friend, remembered a verse, went for a walk, fled the situation…"
+                rows={3} />
+            </div>
+            <div className="form-row">
+              <label>How do you feel right now? <span className="hint">pick all that apply</span></label>
+              <div className="win-feeling-chips">
+                {WIN_FEELINGS.map(f => (
+                  <button key={f} className={`win-feeling-chip${howFeeling.includes(f) ? " sel" : ""}`}
+                    onClick={() => toggleFeeling(f)}>{f}</button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Loss path ── */}
+        {outcome === "fell" && (
+          <>
+            <div className="card-lbl" style={{ marginTop: 14 }}>The Anatomy</div>
+            <div className="form-2col">
+              <div>
+                <label>What did it promise?</label>
+                <textarea value={counterfeit} onChange={e => setCounterfeit(e.target.value)}
+                  placeholder="What relief, comfort, or control did you expect?" />
+              </div>
+              <div>
+                <label>What did it actually cost?</label>
+                <textarea value={postMortem} onChange={e => setPostMortem(e.target.value)}
+                  placeholder="Guilt, numbness, distance from God…" />
+              </div>
+              <div>
+                <label>Free journal <span className="hint">optional</span></label>
+                <textarea value={journal} onChange={e => setJournal(e.target.value)}
+                  placeholder="Confess, reflect, ask…" />
+              </div>
+            </div>
+          </>
+        )}
+
+        <button className="btn" onClick={submit} disabled={!canSubmit}
+          style={outcome === "won" ? { background: "#1a7a50" } : {}}>
+          {submitLabel}
         </button>
+
+        {(aiVictory || aiReflection) && (
+          <button onClick={reset} style={{ marginTop: 8, width: "100%", padding: "10px", background: "none", border: "1.5px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: "0.62rem", color: "var(--muted)", fontFamily: "Inter,sans-serif" }}>
+            Log another →
+          </button>
+        )}
       </div>
-      {busy && (
+
+      {/* AI responses */}
+      {busy && outcome === "won" && (
+        <div className="victory-card"><div className="victory-lbl">🏆 Victory Debrief</div><div className="ai-loading">Reflecting on how you stood firm…</div></div>
+      )}
+      {busy && outcome === "fell" && (
         <>
           <div className="ai-card" style={tabVars("test")}><div className="ai-lbl">⚔ Mortification</div><div className="ai-loading">Searching the Scripture…</div></div>
           <div className="pivot-card"><div className="pivot-lbl">✦ Gospel Pivot</div><div className="ai-loading">Finding the true satisfaction…</div></div>
         </>
+      )}
+      {aiVictory && !busy && (
+        <div className="victory-card"><div className="victory-lbl">🏆 Victory Debrief</div><div className="victory-text">{aiVictory}</div></div>
       )}
       {aiReflection && !busy && (
         <>
@@ -997,7 +1124,7 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
   onDelTask: (id: number) => void; onDelTest: (id: number) => void;
 }) {
   const [view, setView] = useState<HistoryView>("treat");
-  const { sinCounts, strongholds, topSins, topEmo, topBooks, maxSin, maxEmo, maxBook, streak } = getAnalytics(textEntries, testEntries);
+  const { sinCounts, sinWins, lostCounts, strongholds, topSins, topEmo, topBooks, maxSin, maxEmo, maxBook, streak, totalTests, totalWins, winRate } = getAnalytics(textEntries, testEntries);
 
   return (
     <div>
@@ -1005,14 +1132,17 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
       <div className="stats-row">
         <div className="stat-box"><div className="stat-num" style={{ color: TAB_COLORS.text.color }}>{streak}</div><div className="stat-lbl">Text streak (days)</div></div>
         <div className="stat-box"><div className="stat-num" style={{ color: TAB_COLORS.treat.color }}>{treatEntries.length}</div><div className="stat-lbl">Treats logged</div></div>
-        <div className="stat-box"><div className="stat-num" style={{ color: TAB_COLORS.task.color }}>{taskEntries.length}</div><div className="stat-lbl">Tasks committed</div></div>
+        <div className="stat-box">
+          <div className="stat-num" style={{ color: TAB_COLORS.text.color }}>{winRate !== null ? `${winRate}%` : "—"}</div>
+          <div className="stat-lbl">Win rate ({totalWins}/{totalTests})</div>
+        </div>
         <div className="stat-box"><div className={`stat-num${strongholds.length > 0 ? " warn" : ""}`} style={strongholds.length === 0 ? { color: TAB_COLORS.test.color } : {}}>{strongholds.length}</div><div className="stat-lbl">Strongholds</div></div>
       </div>
 
       {strongholds.map(s => (
         <div className="stronghold-banner" key={s}>
           <div className="sh-icon">⚠</div>
-          <div className="sh-text"><strong>{s}</strong> has appeared {sinCounts[s]} times — this may be a stronghold. Bring it to a pastor or accountability partner.</div>
+          <div className="sh-text"><strong>{s}</strong> — lost {lostCounts[s]} times. This may be a stronghold. Bring it to a pastor or accountability partner.</div>
         </div>
       ))}
 
@@ -1028,14 +1158,26 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
       </div>
 
       <div className="chart-section">
-        <div className="chart-title">Sin frequency</div>
-        {topSins.length === 0 ? <div className="no-data">No Test entries yet</div> : topSins.map(([s, c]) => (
-          <div className="bar-row" key={s}>
-            <div className="bar-lbl">{s}</div>
-            <div className="bar-track"><div className="bar-fill" style={{ width: `${(c / maxSin) * 100}%`, background: c >= STRONGHOLD ? "#c0392b" : TAB_COLORS.test.color }} /></div>
-            <div className="bar-count">{c}</div>
-          </div>
-        ))}
+        <div className="chart-title">Temptation encounters — wins vs losses</div>
+        {topSins.length === 0 ? <div className="no-data">No Test entries yet</div> : topSins.map(([s, c]) => {
+          const wins = sinWins[s] || 0;
+          const losses = c - wins;
+          const isStronghold = (lostCounts[s] || 0) >= STRONGHOLD;
+          return (
+            <div className="bar-row" key={s}>
+              <div className="bar-lbl">{s}</div>
+              <div className="bar-track" style={{ position:"relative" }}>
+                <div className="bar-fill" style={{ width: `${(c / maxSin) * 100}%`, background: isStronghold ? "#c0392b" : TAB_COLORS.test.color, opacity: 0.35 }} />
+                <div className="bar-fill" style={{ position:"absolute", top:0, left:0, width: `${(wins / maxSin) * 100}%`, background: TAB_COLORS.text.color }} />
+              </div>
+              <div className="bar-count" style={{ fontSize:"0.52rem", color:"var(--muted)", minWidth:28, textAlign:"right" }}>{wins}W/{losses}L</div>
+            </div>
+          );
+        })}
+        <div style={{ display:"flex", gap:14, marginTop:6 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.5rem", color:"var(--muted)" }}><div style={{ width:10, height:4, borderRadius:2, background:TAB_COLORS.text.color }} /> Won</div>
+          <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.5rem", color:"var(--muted)" }}><div style={{ width:10, height:4, borderRadius:2, background:TAB_COLORS.test.color, opacity:0.35 }} /> Lost</div>
+        </div>
       </div>
 
       <div className="chart-section">
@@ -1099,15 +1241,20 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
       )}
 
       {view === "test" && (testEntries.length === 0
-        ? <div className="empty"><h3>No Test entries yet</h3><p>Begin examining your patterns</p></div>
+        ? <div className="empty"><h3>No Test entries yet</h3><p>Start logging temptations — wins and losses</p></div>
         : testEntries.map(e => {
           const isSH = strongholds.includes(e.sin);
+          const won = e.outcome === "won";
           return (
-            <div className={`entry test-entry`} key={e.id}>
+            <div className="entry test-entry" key={e.id} style={{ borderLeftColor: won ? TAB_COLORS.text.color : TAB_COLORS.test.color }}>
               <button className="del-btn" onClick={() => onDelTest(e.id)}>✕</button>
               <div className="entry-hdr">
-                <div className="entry-ttl" style={{ color: TAB_COLORS.test.color }}>
-                  {e.sin}{isSH && <span style={{ color: "#c0392b", fontSize: "0.52rem", fontWeight: 600, marginLeft: 6 }}>STRONGHOLD</span>}
+                <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  <div className="entry-ttl" style={{ color: won ? TAB_COLORS.text.color : TAB_COLORS.test.color }}>
+                    {e.sin}
+                  </div>
+                  <span className={`outcome-badge ${won ? "won" : "fell"}`}>{won ? "🏆 Won" : "⚔ Lost"}</span>
+                  {isSH && <span style={{ color: "#c0392b", fontSize: "0.52rem", fontWeight: 600 }}>STRONGHOLD</span>}
                 </div>
                 <div className="entry-date">{fmt(e.date)}</div>
               </div>
@@ -1121,11 +1268,13 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
               )}
               {e.emotions?.length > 0 && <div className="entry-chips">{e.emotions.map(em => <span className="entry-chip" key={em}>{em}</span>)}</div>}
               {e.situation && <div className="ef"><div className="ef-lbl">Situation</div><div className="ef-val">{e.situation}</div></div>}
-              {e.counterfeit && <div className="ef"><div className="ef-lbl">Counterfeit promise</div><div className="ef-val">{e.counterfeit}</div></div>}
-              {(e.aiReflection || e.aiPivot) && (
+              {won && e.whatHelped && <div className="ef"><div className="ef-lbl" style={{ color: TAB_COLORS.text.color }}>What helped</div><div className="ef-val">{e.whatHelped}</div></div>}
+              {!won && e.counterfeit && <div className="ef"><div className="ef-lbl">What it promised</div><div className="ef-val">{e.counterfeit}</div></div>}
+              {(won ? e.aiVictory : (e.aiReflection || e.aiPivot)) && (
                 <div className="entry-ai">
-                  {e.aiReflection && <div className="entry-ai-row">⚔ {firstSentence(e.aiReflection)}</div>}
-                  {e.aiPivot && <div className="entry-ai-row" style={{ color: TAB_COLORS.text.color }}>✦ {firstSentence(e.aiPivot)}</div>}
+                  {won && e.aiVictory && <div className="entry-ai-row" style={{ color: TAB_COLORS.text.color }}>🏆 {firstSentence(e.aiVictory)}</div>}
+                  {!won && e.aiReflection && <div className="entry-ai-row">⚔ {firstSentence(e.aiReflection)}</div>}
+                  {!won && e.aiPivot && <div className="entry-ai-row" style={{ color: TAB_COLORS.text.color }}>✦ {firstSentence(e.aiPivot)}</div>}
                 </div>
               )}
             </div>
@@ -1170,7 +1319,7 @@ export default function WTTTApp() {
     await fetch(`${endpoint}/${id}`, { method: "DELETE" });
   }
 
-  const { streak, strongholds } = getAnalytics(textEntries, testEntries);
+  const { streak, strongholds, winRate, totalTests } = getAnalytics(textEntries, testEntries);
   const activeColor = (tab === "more") ? "#111" : (TAB_COLORS[tab]?.color || "#111");
 
   const tabs = [
@@ -1214,7 +1363,9 @@ export default function WTTTApp() {
             <span className="good">{streak} day{streak !== 1 ? "s" : ""} streak</span><br />
             {strongholds.length > 0
               ? <span className="warn">{strongholds.length} stronghold{strongholds.length > 1 ? "s" : ""}</span>
-              : <span>{testEntries.length} test entries</span>}
+              : totalTests > 0
+              ? <span className={winRate! >= 50 ? "good" : "warn"}>{winRate}% win rate</span>
+              : <span>no entries yet</span>}
           </div>
         </div>
       </div>

@@ -288,6 +288,49 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   color:var(--muted);font-family:'Inter',sans-serif;line-height:1;
 }
 
+/* ── Test tab Win/Loss ── */
+.outcome-hdr{
+  font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--muted);margin:16px 0 8px;text-align:center;
+}
+.outcome-row{display:flex;gap:10px;margin-bottom:4px;}
+.outcome-btn{
+  flex:1;padding:15px 8px;border-radius:12px;border:2px solid;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;
+  transition:all 0.2s;font-family:'Inter',sans-serif;background:white;
+}
+.outcome-icon{font-size:1.5rem;line-height:1;}
+.outcome-lbl{font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+.outcome-btn.won{color:#1a7a50;border-color:#a8d9bf;background:#f0faf4;}
+.outcome-btn.won.sel,.outcome-btn.won:hover{background:#1a7a50;color:white;border-color:#1a7a50;}
+.outcome-btn.fell{color:#9b2c1a;border-color:#f0b8b0;background:#fdf4f3;}
+.outcome-btn.fell.sel,.outcome-btn.fell:hover{background:#9b2c1a;color:white;border-color:#9b2c1a;}
+
+.win-feeling-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;}
+.win-feeling-chip{
+  font-size:0.6rem;font-weight:500;padding:5px 12px;
+  border:1.5px solid #a8d9bf;border-radius:999px;
+  background:white;color:#1a7a50;cursor:pointer;
+  transition:all 0.15s;font-family:'Inter',sans-serif;
+}
+.win-feeling-chip.sel{background:#1a7a50;color:white;border-color:#1a7a50;}
+
+.victory-card{
+  border:1.5px solid #a8d9bf;background:#e8f5ee;
+  border-radius:12px;padding:16px;margin-top:14px;
+  animation:fadeIn 0.4s ease;
+}
+.victory-lbl{font-size:0.58rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#1a7a50;margin-bottom:8px;}
+.victory-text{font-size:0.9rem;line-height:1.75;color:var(--ink);white-space:pre-wrap;}
+
+/* Win badge in history */
+.outcome-badge{
+  font-size:0.48rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  padding:2px 8px;border-radius:999px;
+}
+.outcome-badge.won{background:#e8f5ee;color:#1a7a50;border:1px solid #a8d9bf;}
+.outcome-badge.fell{background:#fbeae8;color:#9b2c1a;border:1px solid #f0b8b0;}
+
 /* ── Triumph tab ── */
 .triumph-section{margin-bottom:22px;}
 .triumph-section-hdr{
