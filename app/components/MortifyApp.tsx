@@ -896,9 +896,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
               {isAuto && done && (
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: TAB_COLORS.triumph.color, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>✓</div>
               )}
-              {!goal.isDefault && (
-                <button className="do-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
-              )}
+              <button className="do-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
             </div>
           );
         })}

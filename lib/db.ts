@@ -119,21 +119,30 @@ export async function ensureTables() {
     )
   `;
 
-  // Seed default Do goals (one per autoTab — skip if already exists)
-  const now = new Date().toISOString();
+  // App flags table — tracks one-time seeds so deleted defaults don't resurrect
   await sql`
-    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-    SELECT 'Text', 'do', '📖', '', 'text', true, ${now}
-    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'text')
+    CREATE TABLE IF NOT EXISTS app_flags (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
   `;
-  await sql`
-    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-    SELECT 'Treat', 'do', '🌿', '', 'treat', true, ${now}
-    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'treat')
-  `;
-  await sql`
-    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-    SELECT 'Task', 'do', '✦', '', 'task', true, ${now}
-    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'task')
-  `;
+
+  // Seed default Do goals — only once ever (flag survives deletion of goals)
+  const flagCheck = await sql`SELECT 1 FROM app_flags WHERE key = 'triumph_defaults_seeded'`;
+  if (flagCheck.length === 0) {
+    const now = new Date().toISOString();
+    await sql`
+      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+      VALUES ('Text', 'do', '📖', '', 'text', true, ${now})
+    `;
+    await sql`
+      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+      VALUES ('Treat', 'do', '🌿', '', 'treat', true, ${now})
+    `;
+    await sql`
+      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+      VALUES ('Task', 'do', '✦', '', 'task', true, ${now})
+    `;
+    await sql`INSERT INTO app_flags (key, value) VALUES ('triumph_defaults_seeded', 'true')`;
+  }
 }
