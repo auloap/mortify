@@ -40,4 +40,21 @@ export async function ensureTables() {
       wing INTEGER
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS treat_entries (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL,
+      gratitude TEXT DEFAULT '',
+      "aiReflection" TEXT DEFAULT ''
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS task_entries (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL,
+      task TEXT DEFAULT '',
+      obstacle TEXT DEFAULT '',
+      "aiReflection" TEXT DEFAULT ''
+    )
+  `;
 }
