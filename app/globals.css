@@ -56,12 +56,13 @@ html,body{
   display:flex;align-items:stretch;z-index:20;
 }
 .nav-item{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-size:0.48rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
-  color:var(--subtle);background:none;border:none;cursor:pointer;gap:3px;transition:color 0.2s;
+  flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:0.42rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;
+  color:var(--subtle);background:none;border:none;cursor:pointer;gap:2px;transition:color 0.2s;
+  padding:0 2px;overflow:hidden;
 }
 .nav-item.active{color:var(--tab-color,var(--ink));}
-.nav-icon{font-size:1.05rem;line-height:1;}
+.nav-icon{font-size:0.95rem;line-height:1;}
 .nav-dot{width:4px;height:4px;border-radius:50%;background:var(--tab-color,var(--ink));margin-top:1px;}
 
 /* ── Main scroll area ── */
