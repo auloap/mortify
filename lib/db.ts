@@ -62,4 +62,62 @@ export async function ensureTables() {
       "aiReflection" TEXT DEFAULT ''
     )
   `;
+
+  // ── Triumph tables ─────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS triumph_goals (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'do',
+      icon TEXT DEFAULT '🎯',
+      "linkedSin" TEXT DEFAULT '',
+      "autoTab" TEXT DEFAULT '',
+      "isDefault" BOOLEAN DEFAULT false,
+      "createdAt" TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS triumph_do_logs (
+      id SERIAL PRIMARY KEY,
+      "goalId" INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      "loggedAt" TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS triumph_resist_logs (
+      id SERIAL PRIMARY KEY,
+      "goalId" INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      "pulseEnergy" INTEGER,
+      "loggedAt" TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS triumph_wins (
+      id SERIAL PRIMARY KEY,
+      text TEXT NOT NULL,
+      date TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL
+    )
+  `;
+
+  // Seed default Do goals (one per autoTab — skip if already exists)
+  const now = new Date().toISOString();
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+    SELECT 'Text', 'do', '📖', '', 'text', true, ${now}
+    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'text')
+  `;
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+    SELECT 'Treat', 'do', '🌿', '', 'treat', true, ${now}
+    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'treat')
+  `;
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
+    SELECT 'Task', 'do', '✦', '', 'task', true, ${now}
+    WHERE NOT EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" = 'task')
+  `;
 }

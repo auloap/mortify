@@ -65,16 +65,23 @@ function addCustomChip(cfg: PulseConfig, field: "feelings" | "contexts", raw: st
 }
 
 const TAB_COLORS: Record<string, { color: string; light: string; border: string }> = {
-  treat: { color: "#d4890a", light: "#fef7e8", border: "#f5d9a0" },
-  text:  { color: "#1a7a50", light: "#e8f5ee", border: "#a8d9bf" },
-  task:  { color: "#2d4f8a", light: "#e8edf8", border: "#a8bad9" },
-  test:  { color: "#9b2c1a", light: "#fbeae8", border: "#f0b8b0" },
+  treat:   { color: "#d4890a", light: "#fef7e8", border: "#f5d9a0" },
+  text:    { color: "#1a7a50", light: "#e8f5ee", border: "#a8d9bf" },
+  task:    { color: "#2d4f8a", light: "#e8edf8", border: "#a8bad9" },
+  test:    { color: "#9b2c1a", light: "#fbeae8", border: "#f0b8b0" },
+  triumph: { color: "#6d28d9", light: "#f0ebff", border: "#c4b5fd" },
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Tab = "treat" | "text" | "task" | "test" | "more";
+type Tab = "treat" | "text" | "task" | "test" | "triumph" | "more";
 type HistoryView = "treat" | "text" | "task" | "test";
+
+interface TriumphGoal  { id: number; name: string; type: "do" | "resist"; icon: string; linkedSin: string; autoTab: string; isDefault: boolean; createdAt: string; }
+interface DoLog        { id: number; goalId: number; date: string; loggedAt: string; }
+interface ResistLog    { id: number; goalId: number; date: string; outcome: "won" | "skip" | "fell"; pulseEnergy: number | null; loggedAt: string; }
+interface TriumphWin   { id: number; text: string; date: string; createdAt: string; }
+interface TriumphData  { goals: TriumphGoal[]; doLogs: DoLog[]; resistLogs: ResistLog[]; wins: TriumphWin[]; autoDates: { text: string[]; treat: string[]; task: string[] }; }
 
 interface TreatEntry   { id: number; date: string; gratitude: string; aiReflection: string; }
 interface TextEntry    { id: number; date: string; book: string; passage: string; aboutGod: string; aboutSelf: string; apply: string; prayer: string; aiReflection: string; }
@@ -468,7 +475,11 @@ function TaskTab({ onSaved }: { onSaved: (e: TaskEntry) => void }) {
 
 // ── Test Tab ───────────────────────────────────────────────────────────────
 
-function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
+function TestTab({ onSaved, prefill, onClearPrefill }: {
+  onSaved: (e: TestEntry) => void;
+  prefill?: { sin: string; fromGoal: string } | null;
+  onClearPrefill?: () => void;
+}) {
   const [sin, setSin] = useState("");
   const [custom, setCustom] = useState("");
   const [emotions, setEmotions] = useState<string[]>([]);
@@ -480,6 +491,14 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
   const [busy, setBusy] = useState(false);
   const [aiReflection, setAiReflection] = useState("");
   const [aiPivot, setAiPivot] = useState("");
+
+  // Apply prefill from "Fell →" flow
+  useEffect(() => {
+    if (prefill?.sin) {
+      setSin(SINS.includes(prefill.sin) ? prefill.sin : "Other");
+      if (!SINS.includes(prefill.sin)) setCustom(prefill.sin);
+    }
+  }, [prefill]);
 
   // Pulse state
   const [pulseEnergy, setPulseEnergy] = useState<number | null>(null);
@@ -510,6 +529,7 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
 
       setSin(""); setCustom(""); setEmotions([]); setSituation(""); setCounterfeit(""); setPostMortem(""); setJournal("");
       setPulseEnergy(null); setPulseFeelings([]); setPulseContexts([]);
+      onClearPrefill?.();
       showToast("Entry saved ⚔", TAB_COLORS.test.color);
     } catch { setAiReflection("Could not save. Please try again."); }
     setBusy(false);
@@ -518,6 +538,18 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
   return (
     <div style={tabVars("test")}>
       <p className="section-desc">Where did sin get a foothold today? Examine the heart — with hope, not shame.</p>
+
+      {prefill && (
+        <div className="fell-banner">
+          <span className="fell-banner-icon">⚔</span>
+          <div className="fell-banner-body">
+            <div className="fell-banner-ttl">Fell on: {prefill.fromGoal}</div>
+            <div className="fell-banner-txt">Log it. Name it. Bring it to the light.</div>
+          </div>
+          <button className="fell-banner-close" onClick={onClearPrefill}>✕</button>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-lbl">The Struggle</div>
 
@@ -571,6 +603,388 @@ function TestTab({ onSaved }: { onSaved: (e: TestEntry) => void }) {
           {aiPivot && <div className="pivot-card"><div className="pivot-lbl">✦ Gospel Pivot — What God Truly Offers</div><div className="pivot-text">{aiPivot}</div></div>}
         </>
       )}
+    </div>
+  );
+}
+
+// ── Triumph helpers ────────────────────────────────────────────────────────
+
+function calcStreak(dates: string[]): number {
+  const sorted = [...new Set(dates)].sort().reverse();
+  const dt = new Date(); let streak = 0;
+  const today = dt.toISOString().slice(0, 10);
+  if (!sorted.length) return 0;
+  // Allow today or yesterday to start a streak
+  if (sorted[0] !== today && sorted[0] !== new Date(dt.getTime() - 86400000).toISOString().slice(0, 10)) return 0;
+  for (const d of sorted) {
+    const expected = dt.toISOString().slice(0, 10);
+    if (d === expected) { streak++; dt.setDate(dt.getDate() - 1); } else break;
+  }
+  return streak;
+}
+
+function winStats(resistLogs: ResistLog[], goalId: number) {
+  const logs = resistLogs.filter(l => l.goalId === goalId && l.outcome !== "skip");
+  const wins = logs.filter(l => l.outcome === "won").length;
+  const pct = logs.length ? Math.round((wins / logs.length) * 100) : 0;
+  return { wins, total: logs.length, pct };
+}
+
+const GOAL_ICONS = ["🎯","💪","🙏","🏃","📚","💧","🌅","✝️","🤝","❤️","🛑","🚫"];
+const SIN_CHIPS = ["Pride","Lust","Anger","Envy","Sloth","Gluttony","Greed","Bitterness","Deceit","Fear/Unbelief","Control","Self-pity"];
+
+// ── Triumph Tab ────────────────────────────────────────────────────────────
+
+function TriumphTab({ data, onDataChange, onFell }: {
+  data: TriumphData;
+  onDataChange: (d: TriumphData) => void;
+  onFell: (sin: string, goalName: string) => void;
+}) {
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [showAddWin, setShowAddWin] = useState(false);
+  const [addType, setAddType] = useState<"do" | "resist">("do");
+  const [goalName, setGoalName] = useState("");
+  const [goalIcon, setGoalIcon] = useState("🎯");
+  const [linkedSin, setLinkedSin] = useState("");
+  const [winText, setWinText] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [savingWin, setSavingWin] = useState(false);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  function doGoalDates(goal: TriumphGoal): string[] {
+    if (goal.autoTab === "text")  return data.autoDates.text;
+    if (goal.autoTab === "treat") return data.autoDates.treat;
+    if (goal.autoTab === "task")  return data.autoDates.task;
+    return data.doLogs.filter(l => l.goalId === goal.id).map(l => l.date);
+  }
+
+  function isDoneToday(goal: TriumphGoal): boolean {
+    if (goal.autoTab) return doGoalDates(goal).includes(today);
+    return data.doLogs.some(l => l.goalId === goal.id && l.date === today);
+  }
+
+  async function toggleDo(goal: TriumphGoal) {
+    if (goal.autoTab) return; // auto goals can't be toggled manually
+    const res = await fetch("/api/triumph/do-log", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goalId: goal.id }),
+    });
+    const json = await res.json();
+    onDataChange({
+      ...data,
+      doLogs: json.toggled
+        ? [...data.doLogs, json.log]
+        : data.doLogs.filter(l => !(l.goalId === goal.id && l.date === today)),
+    });
+    showToast(json.toggled ? "Done! 🔥" : "Unmarked", TAB_COLORS.triumph.color);
+  }
+
+  async function logResist(goal: TriumphGoal, outcome: "won" | "skip" | "fell") {
+    if (outcome === "fell") {
+      // Log it then redirect to Test tab
+      await fetch("/api/triumph/resist-log", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goalId: goal.id, outcome }),
+      });
+      onFell(goal.linkedSin || "Other", goal.name);
+      return;
+    }
+    const res = await fetch("/api/triumph/resist-log", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ goalId: goal.id, outcome }),
+    });
+    const log: ResistLog = await res.json();
+    onDataChange({ ...data, resistLogs: [...data.resistLogs, log] });
+    showToast(outcome === "won" ? "Victory logged! 🏆" : "Skipped ·", TAB_COLORS.triumph.color);
+  }
+
+  async function addGoal() {
+    if (!goalName.trim() || savingGoal) return;
+    setSavingGoal(true);
+    const res = await fetch("/api/triumph/goals", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: goalName, type: addType, icon: goalIcon, linkedSin }),
+    });
+    const goal: TriumphGoal = await res.json();
+    onDataChange({ ...data, goals: [...data.goals, goal] });
+    setGoalName(""); setGoalIcon("🎯"); setLinkedSin(""); setShowAddGoal(false);
+    showToast("Goal added 🎯", TAB_COLORS.triumph.color);
+    setSavingGoal(false);
+  }
+
+  async function delGoal(id: number) {
+    await fetch(`/api/triumph/goals/${id}`, { method: "DELETE" });
+    onDataChange({
+      ...data,
+      goals: data.goals.filter(g => g.id !== id),
+      doLogs: data.doLogs.filter(l => l.goalId !== id),
+      resistLogs: data.resistLogs.filter(l => l.goalId !== id),
+    });
+  }
+
+  async function addWin() {
+    if (!winText.trim() || savingWin) return;
+    setSavingWin(true);
+    const res = await fetch("/api/triumph/wins", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: winText }),
+    });
+    const win: TriumphWin = await res.json();
+    onDataChange({ ...data, wins: [win, ...data.wins] });
+    setWinText(""); setShowAddWin(false);
+    showToast("Win recorded! ⭐", TAB_COLORS.triumph.color);
+    setSavingWin(false);
+  }
+
+  async function delWin(id: number) {
+    await fetch(`/api/triumph/wins/${id}`, { method: "DELETE" });
+    onDataChange({ ...data, wins: data.wins.filter(w => w.id !== id) });
+  }
+
+  const doGoals    = data.goals.filter(g => g.type === "do");
+  const resistGoals = data.goals.filter(g => g.type === "resist");
+
+  return (
+    <div style={tabVars("triumph")}>
+      <p className="section-desc">Track your growth — streaks, victories, wins. Every step of faithfulness counts.</p>
+
+      {/* ── Do Goals ── */}
+      <div className="triumph-section">
+        <div className="triumph-section-hdr">🔥 Do Goals — Daily Habits</div>
+
+        {doGoals.map(goal => {
+          const dates  = doGoalDates(goal);
+          const streak = calcStreak(dates);
+          const done   = isDoneToday(goal);
+          const isAuto = !!goal.autoTab;
+          return (
+            <div key={goal.id} className={`do-goal${done ? " done-today" : ""}`}>
+              <div className="do-goal-streak">
+                <span className="do-goal-fire">🔥</span>
+                <div className="do-goal-streak-num">{streak}</div>
+                <div className="do-goal-streak-lbl">day streak</div>
+              </div>
+              <div className="do-goal-body">
+                <div className="do-goal-name">{goal.icon} {goal.name}</div>
+                <div className="do-goal-sub">
+                  {isAuto
+                    ? `Auto-tracked from ${goal.autoTab.charAt(0).toUpperCase() + goal.autoTab.slice(1)} tab`
+                    : done ? "Done today ✓" : "Not done yet today"}
+                </div>
+              </div>
+              {!isAuto && (
+                <button
+                  className={`do-goal-check${done ? " checked" : ""}`}
+                  onClick={() => toggleDo(goal)}
+                  title={done ? "Unmark done" : "Mark done today"}
+                >
+                  {done ? "✓" : ""}
+                </button>
+              )}
+              {isAuto && done && (
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: TAB_COLORS.triumph.color, color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>✓</div>
+              )}
+              {!goal.isDefault && (
+                <button className="do-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Add Do goal */}
+        {showAddGoal && addType === "do" ? null : (
+          !showAddGoal && (
+            <button
+              className="triumph-add-bar collapsed"
+              onClick={() => { setAddType("do"); setShowAddGoal(true); }}
+            >
+              <span className="triumph-add-icon">＋</span>
+              <span className="triumph-add-prompt">Add a daily Do goal…</span>
+              <span className="triumph-add-chevron">▶</span>
+            </button>
+          )
+        )}
+      </div>
+
+      {/* ── Resist Goals ── */}
+      <div className="triumph-section">
+        <div className="triumph-section-hdr">🛡 Resist Goals — Win Rate</div>
+
+        {resistGoals.length === 0 && (
+          <div className="empty" style={{ padding: "18px 0" }}>
+            <p style={{ fontSize: "0.7rem", color: "var(--muted)" }}>No resist goals yet. Add one below.</p>
+          </div>
+        )}
+
+        {resistGoals.map(goal => {
+          const { wins, total, pct } = winStats(data.resistLogs, goal.id);
+          const todayLogs = data.resistLogs.filter(l => l.goalId === goal.id && l.date === today);
+          const todayOutcome = todayLogs.length > 0 ? todayLogs[todayLogs.length - 1].outcome : null;
+          return (
+            <div key={goal.id} className="resist-goal">
+              <button className="resist-goal-del" onClick={() => delGoal(goal.id)}>✕</button>
+              <div className="resist-goal-hdr">
+                <div className="resist-goal-info">
+                  <div className="resist-goal-name">{goal.icon} {goal.name}</div>
+                  <div className="resist-goal-pct">{total > 0 ? `${wins} wins out of ${total} encounters` : "No encounters logged yet"}</div>
+                </div>
+                <div className="resist-win-rate">
+                  {pct}%
+                  <span>win rate</span>
+                </div>
+              </div>
+              <div className="resist-bar-track">
+                <div className="resist-bar-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="resist-actions">
+                {(["won", "skip", "fell"] as const).map(outcome => (
+                  <button
+                    key={outcome}
+                    className={`resist-btn ${outcome}${todayOutcome === outcome ? " sel" : ""}`}
+                    onClick={() => logResist(goal, outcome)}
+                  >
+                    {outcome === "won" ? "🏆 Won" : outcome === "skip" ? "· Skip" : "⚔ Fell →"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add Resist goal */}
+        {!(showAddGoal && addType === "resist") && (
+          <button
+            className="triumph-add-bar collapsed"
+            onClick={() => { setAddType("resist"); setShowAddGoal(true); }}
+          >
+            <span className="triumph-add-icon">＋</span>
+            <span className="triumph-add-prompt">Add a Resist goal…</span>
+            <span className="triumph-add-chevron">▶</span>
+          </button>
+        )}
+      </div>
+
+      {/* ── Add Goal Sheet ── */}
+      {showAddGoal && (
+        <div className="triumph-add-bar" style={{ marginTop: -8 }}>
+          <div className="type-toggle" style={{ marginBottom: 12 }}>
+            <button className={`type-btn${addType === "do" ? " active" : ""}`} onClick={() => setAddType("do")}>🔥 Do Goal</button>
+            <button className={`type-btn${addType === "resist" ? " active" : ""}`} onClick={() => setAddType("resist")}>🛡 Resist Goal</button>
+          </div>
+
+          {/* Icon picker */}
+          <div style={{ marginBottom: 10 }}>
+            <label>Icon</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              {GOAL_ICONS.map(ic => (
+                <button
+                  key={ic}
+                  onClick={() => setGoalIcon(ic)}
+                  style={{
+                    width: 34, height: 34, fontSize: "1.1rem", border: `2px solid ${goalIcon === ic ? TAB_COLORS.triumph.color : "var(--border)"}`,
+                    borderRadius: 8, background: goalIcon === ic ? TAB_COLORS.triumph.light : "white",
+                    cursor: "pointer",
+                  }}
+                >{ic}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label>{addType === "do" ? "Habit name" : "What are you resisting?"}</label>
+            <input
+              type="text" value={goalName}
+              onChange={e => setGoalName(e.target.value)}
+              placeholder={addType === "do" ? "e.g. Morning walk, Cold shower…" : "e.g. Social media, Overeating…"}
+              onKeyDown={e => e.key === "Enter" && addGoal()}
+            />
+          </div>
+
+          {addType === "resist" && (
+            <div className="form-row">
+              <label>Linked sin type <span className="hint">optional — for "Fell →" pre-fill</span></label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
+                {SIN_CHIPS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setLinkedSin(linkedSin === s ? "" : s)}
+                    style={{
+                      fontSize: "0.58rem", fontWeight: 500, padding: "4px 10px",
+                      border: `1.5px solid ${linkedSin === s ? TAB_COLORS.test.color : "var(--border)"}`,
+                      borderRadius: 999, background: linkedSin === s ? TAB_COLORS.test.light : "white",
+                      color: linkedSin === s ? TAB_COLORS.test.color : "var(--muted)",
+                      cursor: "pointer", fontFamily: "Inter, sans-serif",
+                    }}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button className="btn" onClick={addGoal} disabled={!goalName.trim() || savingGoal} style={{ marginTop: 0, flex: 1 }}>
+              {savingGoal ? "Saving…" : "Add Goal"}
+            </button>
+            <button onClick={() => { setShowAddGoal(false); setGoalName(""); setLinkedSin(""); }}
+              style={{ marginTop: 0, padding: "13px 18px", background: "none", border: "1.5px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: "0.7rem", color: "var(--muted)" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Wins Log ── */}
+      <div className="triumph-section">
+        <div className="triumph-section-hdr">⭐ Wins — One-off Victories</div>
+
+        {data.wins.length === 0 && !showAddWin && (
+          <div className="empty" style={{ padding: "18px 0" }}>
+            <p style={{ fontSize: "0.7rem", color: "var(--muted)" }}>No wins logged yet. Record your first victory.</p>
+          </div>
+        )}
+
+        {data.wins.map(win => (
+          <div key={win.id} className="win-item">
+            <span className="win-star">⭐</span>
+            <div className="win-body">
+              <div className="win-text">{win.text}</div>
+              <div className="win-date">{fmt(win.createdAt)}</div>
+            </div>
+            <button className="win-del" onClick={() => delWin(win.id)}>✕</button>
+          </div>
+        ))}
+
+        {showAddWin ? (
+          <div className="triumph-add-bar">
+            <div className="form-row" style={{ marginBottom: 8 }}>
+              <label>What did you win today?</label>
+              <textarea
+                value={winText}
+                onChange={e => setWinText(e.target.value)}
+                placeholder="e.g. Walked 2km. Said no to a bad habit. Called a friend I'd been avoiding."
+                rows={2}
+                style={{ minHeight: 56 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn" onClick={addWin} disabled={!winText.trim() || savingWin} style={{ marginTop: 0, flex: 1 }}>
+                {savingWin ? "Saving…" : "Record Win ⭐"}
+              </button>
+              <button onClick={() => { setShowAddWin(false); setWinText(""); }}
+                style={{ marginTop: 0, padding: "13px 18px", background: "none", border: "1.5px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: "0.7rem", color: "var(--muted)" }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="triumph-add-bar collapsed" onClick={() => setShowAddWin(true)}>
+            <span className="triumph-add-icon">＋</span>
+            <span className="triumph-add-prompt">Record a win…</span>
+            <span className="triumph-add-chevron">▶</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -724,24 +1138,30 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTre
 
 // ── Main App ───────────────────────────────────────────────────────────────
 
+const EMPTY_TRIUMPH: TriumphData = { goals: [], doLogs: [], resistLogs: [], wins: [], autoDates: { text: [], treat: [], task: [] } };
+
 export default function WTTTApp() {
   const [tab, setTab] = useState<Tab>("treat");
   const [treatEntries, setTreatEntries] = useState<TreatEntry[]>([]);
   const [textEntries,  setTextEntries]  = useState<TextEntry[]>([]);
   const [taskEntries,  setTaskEntries]  = useState<TaskEntry[]>([]);
   const [testEntries,  setTestEntries]  = useState<TestEntry[]>([]);
+  const [triumphData,  setTriumphData]  = useState<TriumphData>(EMPTY_TRIUMPH);
+  const [testPrefill,  setTestPrefill]  = useState<{ sin: string; fromGoal: string } | null>(null);
 
   const load = useCallback(async () => {
-    const [treat, text, task, test] = await Promise.all([
+    const [treat, text, task, test, triumph] = await Promise.all([
       fetch("/api/treat").then(r => r.json()),
       fetch("/api/qt").then(r => r.json()),
       fetch("/api/task").then(r => r.json()),
       fetch("/api/sin").then(r => r.json()),
+      fetch("/api/triumph").then(r => r.json()),
     ]);
     setTreatEntries(treat);
     setTextEntries(text);
     setTaskEntries(task);
     setTestEntries(test);
+    setTriumphData(triumph);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -751,18 +1171,37 @@ export default function WTTTApp() {
   }
 
   const { streak, strongholds } = getAnalytics(textEntries, testEntries);
-  const activeColor = tab === "more" ? "#111" : (TAB_COLORS[tab]?.color || "#111");
+  const activeColor = (tab === "more") ? "#111" : (TAB_COLORS[tab]?.color || "#111");
 
   const tabs = [
-    { id: "treat" as Tab, icon: "🌿", label: "Treat" },
-    { id: "text"  as Tab, icon: "📖", label: "Text" },
-    { id: "task"  as Tab, icon: "✦",  label: "Task" },
-    { id: "test"  as Tab, icon: "⚔",  label: "Test" },
-    { id: "more"  as Tab, icon: "◎",  label: "More" },
+    { id: "treat"   as Tab, icon: "🌿", label: "Treat" },
+    { id: "text"    as Tab, icon: "📖", label: "Text" },
+    { id: "task"    as Tab, icon: "✦",  label: "Task" },
+    { id: "test"    as Tab, icon: "⚔",  label: "Test" },
+    { id: "triumph" as Tab, icon: "🔥", label: "Triumph" },
+    { id: "more"    as Tab, icon: "◎",  label: "More" },
   ];
+
+  function handleFell(sin: string, goalName: string) {
+    setTestPrefill({ sin, fromGoal: goalName });
+    setTab("test");
+    showToast(`Fell on: ${goalName} — log it ⚔`, TAB_COLORS.test.color);
+  }
+
+  // Sync triumph autoDates when relevant tab entries change
+  const syncedTriumph: TriumphData = {
+    ...triumphData,
+    autoDates: {
+      text:  textEntries.map(e => e.date.slice(0, 10)),
+      treat: treatEntries.map(e => e.date.slice(0, 10)),
+      task:  taskEntries.map(e => e.date.slice(0, 10)),
+    },
+  };
 
   const headerTitle = tab === "more"
     ? <span style={{ fontSize: "1.3rem", fontWeight: 600 }}>Patterns & History</span>
+    : tab === "triumph"
+    ? <span>What&apos;s the <strong style={{ color: activeColor }}>Triumph</strong> today?</span>
     : <>What&apos;s the <strong style={{ color: activeColor }}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</strong> today?</>;
 
   return (
@@ -781,11 +1220,12 @@ export default function WTTTApp() {
       </div>
 
       <div className="main">
-        {tab === "treat" && <TreatTab onSaved={e => setTreatEntries(p => [e, ...p])} />}
-        {tab === "text"  && <TextTab  onSaved={e => setTextEntries(p => [e, ...p])} />}
-        {tab === "task"  && <TaskTab  onSaved={e => setTaskEntries(p => [e, ...p])} />}
-        {tab === "test"  && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} />}
-        {tab === "more"  && (
+        {tab === "treat"   && <TreatTab onSaved={e => setTreatEntries(p => [e, ...p])} />}
+        {tab === "text"    && <TextTab  onSaved={e => setTextEntries(p => [e, ...p])} />}
+        {tab === "task"    && <TaskTab  onSaved={e => setTaskEntries(p => [e, ...p])} />}
+        {tab === "test"    && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} prefill={testPrefill} onClearPrefill={() => setTestPrefill(null)} />}
+        {tab === "triumph" && <TriumphTab data={syncedTriumph} onDataChange={setTriumphData} onFell={handleFell} />}
+        {tab === "more"    && (
           <MoreTab
             treatEntries={treatEntries} textEntries={textEntries}
             taskEntries={taskEntries}   testEntries={testEntries}

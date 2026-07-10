@@ -20,6 +20,7 @@
   --text-c:#1a7a50; --text-light:#e8f5ee; --text-border:#a8d9bf;
   --task:#2d4f8a;  --task-light:#e8edf8;  --task-border:#a8bad9;
   --test:#9b2c1a;  --test-light:#fbeae8;  --test-border:#f0b8b0;
+  --triumph:#6d28d9; --triumph-light:#f0ebff; --triumph-border:#c4b5fd;
 }
 
 html,body{
@@ -185,6 +186,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .hist-tab.active-text{background:var(--text-c);color:white;border-color:var(--text-c);}
 .hist-tab.active-task{background:var(--task);color:white;border-color:var(--task);}
 .hist-tab.active-test{background:var(--test);color:white;border-color:var(--test);}
+.hist-tab.active-triumph{background:var(--triumph);color:white;border-color:var(--triumph);}
 
 /* ── Entry cards ── */
 .entry{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;position:relative;animation:fadeIn 0.3s ease;}
@@ -284,6 +286,109 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   border:1.5px solid var(--border);border-radius:999px;cursor:pointer;
   color:var(--muted);font-family:'Inter',sans-serif;line-height:1;
 }
+
+/* ── Triumph tab ── */
+.triumph-section{margin-bottom:22px;}
+.triumph-section-hdr{
+  font-size:0.58rem;font-weight:700;letter-spacing:0.13em;text-transform:uppercase;
+  color:var(--triumph);border-bottom:1px solid var(--triumph-border);padding-bottom:7px;margin-bottom:12px;
+}
+
+/* Do goal card */
+.do-goal{
+  background:#fff;border:1.5px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px;
+  box-shadow:0 2px 8px var(--shadow);position:relative;
+}
+.do-goal.done-today{border-color:var(--triumph-border);background:var(--triumph-light);}
+.do-goal-streak{text-align:center;flex-shrink:0;min-width:52px;}
+.do-goal-fire{font-size:2rem;line-height:1;display:block;}
+.do-goal-streak-num{font-size:1.3rem;font-weight:800;color:var(--triumph);line-height:1;}
+.do-goal-streak-lbl{font-size:0.38rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--triumph);opacity:0.7;}
+.do-goal-body{flex:1;min-width:0;}
+.do-goal-name{font-size:1rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.do-goal-sub{font-size:0.56rem;color:var(--muted);margin-top:2px;}
+.do-goal-check{
+  width:36px;height:36px;border-radius:50%;border:2px solid var(--border);
+  background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:1rem;flex-shrink:0;transition:all 0.2s;
+}
+.do-goal-check.checked{background:var(--triumph);border-color:var(--triumph);color:white;}
+.do-goal-del{position:absolute;top:7px;right:7px;background:none;border:none;cursor:pointer;font-size:0.55rem;color:var(--border);padding:2px 4px;}
+.do-goal-del:hover{color:var(--test);}
+
+/* Resist goal card */
+.resist-goal{
+  background:#fff;border:1.5px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px var(--shadow);position:relative;
+}
+.resist-goal-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;gap:10px;}
+.resist-goal-info{flex:1;min-width:0;}
+.resist-goal-name{font-size:1rem;font-weight:600;color:var(--ink);}
+.resist-goal-pct{font-size:0.56rem;color:var(--muted);margin-top:2px;}
+.resist-win-rate{font-size:1.4rem;font-weight:800;color:var(--triumph);text-align:right;flex-shrink:0;}
+.resist-win-rate span{font-size:0.52rem;font-weight:600;display:block;color:var(--muted);text-align:center;}
+.resist-bar-track{height:5px;background:var(--border);border-radius:999px;margin-bottom:10px;}
+.resist-bar-fill{height:100%;background:var(--triumph);border-radius:999px;transition:width 0.6s ease;}
+.resist-actions{display:flex;gap:6px;}
+.resist-btn{
+  flex:1;padding:9px 4px;font-family:'Inter',sans-serif;font-size:0.6rem;font-weight:700;
+  letter-spacing:0.06em;text-transform:uppercase;border:1.5px solid;cursor:pointer;
+  border-radius:8px;transition:all 0.2s;
+}
+.resist-btn.won{color:#1a7a50;border-color:#a8d9bf;background:#e8f5ee;}
+.resist-btn.won:hover,.resist-btn.won.sel{background:#1a7a50;color:white;border-color:#1a7a50;}
+.resist-btn.skip{color:#888;border-color:#ddd;background:#fafafa;}
+.resist-btn.skip:hover,.resist-btn.skip.sel{background:#888;color:white;border-color:#888;}
+.resist-btn.fell{color:#9b2c1a;border-color:#f0b8b0;background:#fbeae8;}
+.resist-btn.fell:hover,.resist-btn.fell.sel{background:#9b2c1a;color:white;border-color:#9b2c1a;}
+.resist-goal-del{position:absolute;top:7px;right:7px;background:none;border:none;cursor:pointer;font-size:0.55rem;color:var(--border);padding:2px 4px;}
+.resist-goal-del:hover{color:var(--test);}
+
+/* Wins log */
+.win-item{
+  display:flex;align-items:flex-start;gap:10px;
+  background:#fff;border:1.5px solid var(--border);border-radius:10px;
+  padding:12px 14px;margin-bottom:8px;
+}
+.win-star{font-size:1.1rem;flex-shrink:0;margin-top:1px;}
+.win-body{flex:1;min-width:0;}
+.win-text{font-size:0.9rem;line-height:1.5;color:var(--ink);}
+.win-date{font-size:0.52rem;color:var(--muted);margin-top:3px;}
+.win-del{background:none;border:none;cursor:pointer;font-size:0.55rem;color:var(--border);padding:2px 4px;flex-shrink:0;}
+.win-del:hover{color:var(--test);}
+
+/* Add goal / win bottom sheet */
+.triumph-add-bar{
+  background:#fff;border:1.5px solid var(--triumph-border);
+  border-radius:12px;padding:16px;margin-bottom:14px;
+}
+.triumph-add-bar.collapsed{padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+.triumph-add-bar.collapsed:hover{background:var(--triumph-light);}
+.triumph-add-icon{font-size:1.1rem;}
+.triumph-add-prompt{font-size:0.7rem;color:var(--muted);font-style:italic;flex:1;}
+.triumph-add-chevron{font-size:0.6rem;color:var(--subtle);}
+
+/* Type toggle */
+.type-toggle{display:flex;gap:0;margin-bottom:14px;border:1.5px solid var(--triumph-border);border-radius:8px;overflow:hidden;}
+.type-btn{
+  flex:1;padding:9px 4px;font-family:'Inter',sans-serif;font-size:0.62rem;font-weight:700;
+  letter-spacing:0.06em;text-transform:uppercase;border:none;cursor:pointer;
+  background:transparent;color:var(--muted);transition:all 0.2s;
+}
+.type-btn.active{background:var(--triumph);color:white;}
+
+/* Fell banner in Test tab */
+.fell-banner{
+  display:flex;align-items:center;gap:10px;
+  background:#1c1c2e;border-radius:10px;padding:12px 15px;margin-bottom:14px;
+  animation:fadeIn 0.3s ease;
+}
+.fell-banner-icon{font-size:1.2rem;flex-shrink:0;}
+.fell-banner-body{flex:1;}
+.fell-banner-ttl{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#c4b5fd;margin-bottom:2px;}
+.fell-banner-txt{font-size:0.82rem;color:#e8e8f0;line-height:1.4;}
+.fell-banner-close{font-size:0.75rem;color:#666;background:none;border:none;cursor:pointer;padding:2px 4px;}
 
 /* ── Mobile ── */
 @media(max-width:500px){
