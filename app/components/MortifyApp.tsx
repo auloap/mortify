@@ -174,7 +174,7 @@ function TreatTab({ onSaved }: { onSaved: (e: TreatEntry) => void }) {
       <p className="section-desc">Name what God has given you today — big or small. See the Giver behind the gifts.</p>
       <div className="card">
         <div className="card-lbl">Today&apos;s Gifts</div>
-        <div className="prompt-box">What has God given you today that you didn&apos;t deserve?</div>
+        <div className="prompt-box">What can you thank God for today?</div>
         <div className="form-row">
           <label>Your gratitude <span className="hint">1–3 things</span></label>
           <textarea value={gratitude} onChange={e => setGratitude(e.target.value)}
