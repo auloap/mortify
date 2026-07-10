@@ -4,6 +4,7 @@ import {
   BASE_MORTIFICATION_INSTRUCTION,
   BASE_PIVOT_INSTRUCTION,
   BASE_VICTORY_INSTRUCTION,
+  BASE_DAY_REVIEW_INSTRUCTION,
 } from "./prompts/base-pastoral";
 
 export interface UserProfile {
@@ -78,6 +79,73 @@ export function buildMortificationUserMessage(ctx: SinContext): string {
 - Counterfeit satisfaction: ${ctx.counterfeit}
 - Post-mortem cost: ${ctx.postMortem}
 - Journal: ${ctx.journal || "(none)"}`;
+}
+
+// --- Day Review ---
+
+export interface DayContext {
+  moods: { energy: number; note: string; loggedAt: string }[];
+  sins: { sin: string; outcome: string; whatHelped: string; situation: string }[];
+  qts: { book: string; passage: string; aboutGod: string }[];
+  treats: { gratitude: string }[];
+  tasks: { task: string }[];
+  wins: { text: string }[];
+}
+
+const MOOD_WORDS = ["", "Drained", "Low", "Okay", "Good", "Sharp"];
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-SG", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+export function buildDayReviewSystem(profile: UserProfile): string {
+  return `${BASE_DAY_REVIEW_INSTRUCTION}${profileSection(profile)}`;
+}
+
+export function buildDayReviewUserMessage(ctx: DayContext): string {
+  const moodLog = ctx.moods.length > 0
+    ? ctx.moods.map(m => `  ${fmtTime(m.loggedAt)}: [${m.energy}/5 ${MOOD_WORDS[m.energy]}]${m.note ? ` — "${m.note}"` : ""}`).join("\n")
+    : "  (none logged)";
+
+  const sinLog = ctx.sins.length > 0
+    ? ctx.sins.map(s => `  • ${s.sin} — ${s.outcome === "won" ? `WON (${s.whatHelped || "no note"})` : `lost (${s.situation || "no context"})`}`).join("\n")
+    : "  (none)";
+
+  const qtLog = ctx.qts.length > 0
+    ? ctx.qts.map(q => `  ${q.book} ${q.passage}: "${q.aboutGod}"`).join("\n")
+    : "  (none)";
+
+  const treatLog = ctx.treats.length > 0
+    ? ctx.treats.map(t => `  "${t.gratitude}"`).join("\n")
+    : "  (none)";
+
+  const taskLog = ctx.tasks.length > 0
+    ? ctx.tasks.map(t => `  "${t.task}"`).join("\n")
+    : "  (none)";
+
+  const winLog = ctx.wins.length > 0
+    ? ctx.wins.map(w => `  "${w.text}"`).join("\n")
+    : "  (none)";
+
+  return `Day summary for review:
+
+Mood log:
+${moodLog}
+
+Temptations (Test):
+${sinLog}
+
+Quiet time (Text):
+${qtLog}
+
+Gratitude (Treat):
+${treatLog}
+
+Task committed:
+${taskLog}
+
+Triumph wins:
+${winLog}`;
 }
 
 // --- Sin: Victory Debrief ---

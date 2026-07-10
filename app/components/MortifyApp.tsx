@@ -78,6 +78,7 @@ const TAB_COLORS: Record<string, { color: string; light: string; border: string 
 type Tab = "treat" | "text" | "task" | "test" | "triumph" | "more";
 type HistoryView = "treat" | "text" | "task" | "test";
 
+interface MoodEntry    { id: number; date: string; energy: number; note: string; loggedAt: string; }
 interface TriumphGoal  { id: number; name: string; type: "do" | "resist"; icon: string; linkedSin: string; autoTab: string; isDefault: boolean; createdAt: string; }
 interface DoLog        { id: number; goalId: number; date: string; loggedAt: string; }
 interface ResistLog    { id: number; goalId: number; date: string; outcome: "won" | "skip" | "fell"; pulseEnergy: number | null; loggedAt: string; }
@@ -1101,16 +1102,56 @@ function TriumphTab({ data, onDataChange, onFell }: {
 
 // ── More Tab (Patterns + History) ─────────────────────────────────────────
 
-function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, onDelTreat, onDelText, onDelTask, onDelTest }: {
+function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, moodEntries, onDelTreat, onDelText, onDelTask, onDelTest }: {
   treatEntries: TreatEntry[]; textEntries: TextEntry[]; taskEntries: TaskEntry[]; testEntries: TestEntry[];
+  moodEntries: MoodEntry[];
   onDelTreat: (id: number) => void; onDelText: (id: number) => void;
   onDelTask: (id: number) => void; onDelTest: (id: number) => void;
 }) {
   const [view, setView] = useState<HistoryView>("treat");
+  const [dayReview, setDayReview] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
   const { sinCounts, sinWins, lostCounts, strongholds, topSins, topEmo, topBooks, maxSin, maxEmo, maxBook, streak, totalTests, totalWins, winRate } = getAnalytics(textEntries, testEntries);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayMoods = moodEntries.filter(e => e.date === today);
+
+  async function getDayReview() {
+    setReviewBusy(true); setDayReview("");
+    try {
+      const res = await fetch("/api/mood/summary", { method: "POST" });
+      const json = await res.json();
+      setDayReview(json.aiSummary || "No summary returned.");
+    } catch { setDayReview("Could not reach AI. Please try again."); }
+    setReviewBusy(false);
+  }
 
   return (
     <div>
+      {/* ── Day Review ── */}
+      <div className="day-review-card">
+        <div className="day-review-hdr">
+          <span className="day-review-title">✦ How&apos;s today?</span>
+          <button className="day-review-btn" onClick={getDayReview} disabled={reviewBusy}>
+            {reviewBusy ? "Reading…" : "Get Day Summary"}
+          </button>
+        </div>
+        {todayMoods.length > 0 && (
+          <div className="day-review-mood-row">
+            {todayMoods.slice().reverse().map(m => (
+              <span key={m.id} className="day-review-mood-dot">
+                {m.energy} {ENERGY_WORDS[m.energy]}{m.note ? ` · ${m.note}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
+        {reviewBusy && <div className="day-review-loading">Synthesising your day…</div>}
+        {dayReview && !reviewBusy && <div className="day-review-text">{dayReview}</div>}
+        {!dayReview && !reviewBusy && todayMoods.length === 0 && (
+          <div style={{ fontSize: "0.68rem", color: "var(--muted)" }}>Log your mood above throughout the day, then get a pastoral summary here.</div>
+        )}
+      </div>
+
       {/* Stats */}
       <div className="stats-row">
         <div className="stat-box"><div className="stat-num" style={{ color: TAB_COLORS.text.color }}>{streak}</div><div className="stat-lbl">Text streak (days)</div></div>
@@ -1280,22 +1321,37 @@ export default function WTTTApp() {
   const [testEntries,  setTestEntries]  = useState<TestEntry[]>([]);
   const [triumphData,  setTriumphData]  = useState<TriumphData>(EMPTY_TRIUMPH);
   const [testPrefill,  setTestPrefill]  = useState<{ sin: string; fromGoal: string } | null>(null);
-  const [moodEnergy,   setMoodEnergy]   = useState<number | null>(null);
+  const [moodEntries,  setMoodEntries]  = useState<MoodEntry[]>([]);
+  const [pendingMood,  setPendingMood]  = useState<number | null>(null);
+  const [moodNote,     setMoodNote]     = useState("");
 
   const load = useCallback(async () => {
-    const [treat, text, task, test, triumph] = await Promise.all([
+    const [treat, text, task, test, triumph, mood] = await Promise.all([
       fetch("/api/treat").then(r => r.json()),
       fetch("/api/qt").then(r => r.json()),
       fetch("/api/task").then(r => r.json()),
       fetch("/api/sin").then(r => r.json()),
       fetch("/api/triumph").then(r => r.json()),
+      fetch("/api/mood").then(r => r.json()),
     ]);
     setTreatEntries(treat);
     setTextEntries(text);
     setTaskEntries(task);
     setTestEntries(test);
     setTriumphData(triumph);
+    setMoodEntries(mood);
   }, []);
+
+  async function logMood(energy: number, note: string) {
+    const res = await fetch("/api/mood", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ energy, note }),
+    });
+    const entry: MoodEntry = await res.json();
+    setMoodEntries(p => [entry, ...p]);
+    setPendingMood(null); setMoodNote("");
+    showToast(`Mood logged — ${ENERGY_WORDS[energy]}`, "#059669");
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -1353,36 +1409,65 @@ export default function WTTTApp() {
           </div>
         </div>
         {/* ── Global mood strip ── */}
-        <div className="mood-strip">
-          <span className="mood-strip-lbl">⚡ Energy</span>
-          <div className="mood-btns">
-            {[1,2,3,4,5].map(n => (
-              <button
-                key={n}
-                className={`mood-btn${moodEnergy === n ? ` sel-${n}` : ""}`}
-                onClick={() => setMoodEnergy(moodEnergy === n ? null : n)}
-              >
-                <span className="mood-num">{n}</span>
-                <span className="mood-word-sm">{ENERGY_WORDS[n]}</span>
-              </button>
-            ))}
-          </div>
-          <span className="mood-status">
-            {moodEnergy ? ENERGY_WORDS[moodEnergy] : "—"}
-          </span>
-        </div>
+        {(() => {
+          const today = new Date().toISOString().slice(0, 10);
+          const todayMoods = moodEntries.filter(e => e.date === today);
+          const avgMood = todayMoods.length > 0
+            ? (todayMoods.reduce((s, e) => s + e.energy, 0) / todayMoods.length).toFixed(1)
+            : null;
+          return (
+            <div className="mood-strip">
+              <div className="mood-strip-row">
+                <span className="mood-strip-lbl">Mood</span>
+                <div className="mood-btns">
+                  {[1,2,3,4,5].map(n => (
+                    <button
+                      key={n}
+                      className={`mood-btn${pendingMood === n ? ` sel-${n}` : ""}`}
+                      onClick={() => setPendingMood(pendingMood === n ? null : n)}
+                    >
+                      <span className="mood-num">{n}</span>
+                      <span className="mood-word-sm">{ENERGY_WORDS[n]}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mood-today">
+                  {avgMood ? <><strong>{avgMood}</strong><br />avg · {todayMoods.length}×</> : <span style={{ color: "var(--subtle)" }}>—</span>}
+                </div>
+              </div>
+              {pendingMood && (
+                <div className="mood-note-row">
+                  <input
+                    className="mood-note-input"
+                    value={moodNote}
+                    onChange={e => setMoodNote(e.target.value)}
+                    placeholder={`${ENERGY_WORDS[pendingMood]} — what's going on?`}
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === "Enter") logMood(pendingMood, moodNote);
+                      if (e.key === "Escape") { setPendingMood(null); setMoodNote(""); }
+                    }}
+                  />
+                  <button className="mood-log-btn" onClick={() => logMood(pendingMood, moodNote)}>Log</button>
+                  <button className="mood-cancel-btn" onClick={() => { setPendingMood(null); setMoodNote(""); }}>✕</button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="main">
         {tab === "treat"   && <TreatTab onSaved={e => setTreatEntries(p => [e, ...p])} />}
         {tab === "text"    && <TextTab  onSaved={e => setTextEntries(p => [e, ...p])} />}
         {tab === "task"    && <TaskTab  onSaved={e => setTaskEntries(p => [e, ...p])} />}
-        {tab === "test"    && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} prefill={testPrefill} onClearPrefill={() => setTestPrefill(null)} moodEnergy={moodEnergy} />}
+        {tab === "test"    && <TestTab  onSaved={e => setTestEntries(p => [e, ...p])} prefill={testPrefill} onClearPrefill={() => setTestPrefill(null)} moodEnergy={(() => { const today = new Date().toISOString().slice(0,10); const t = moodEntries.filter(e => e.date === today); return t.length > 0 ? Math.round(t.reduce((s,e)=>s+e.energy,0)/t.length) : null; })()} />}
         {tab === "triumph" && <TriumphTab data={syncedTriumph} onDataChange={setTriumphData} onFell={handleFell} />}
         {tab === "more"    && (
           <MoreTab
             treatEntries={treatEntries} textEntries={textEntries}
             taskEntries={taskEntries}   testEntries={testEntries}
+            moodEntries={moodEntries}
             onDelTreat={id => { del("/api/treat", id); setTreatEntries(p => p.filter(e => e.id !== id)); }}
             onDelText={id  => { del("/api/qt",    id); setTextEntries(p => p.filter(e => e.id !== id)); }}
             onDelTask={id  => { del("/api/task",  id); setTaskEntries(p => p.filter(e => e.id !== id)); }}

@@ -68,6 +68,17 @@ export async function ensureTables() {
     )
   `;
 
+  // ── Mood log ───────────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS mood_entries (
+      id SERIAL PRIMARY KEY,
+      date TEXT NOT NULL,
+      energy INTEGER NOT NULL,
+      note TEXT DEFAULT '',
+      "loggedAt" TEXT NOT NULL
+    )
+  `;
+
   // ── Triumph tables ─────────────────────────────────────────────────────────
   await sql`
     CREATE TABLE IF NOT EXISTS triumph_goals (

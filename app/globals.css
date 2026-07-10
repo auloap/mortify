@@ -288,11 +288,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
   color:var(--muted);font-family:'Inter',sans-serif;line-height:1;
 }
 
-/* ── Global mood / energy strip ── */
+/* ── Global mood strip ── */
 .mood-strip{
-  display:flex;align-items:center;gap:10px;
   margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
 }
+.mood-strip-row{display:flex;align-items:center;gap:10px;}
 .mood-strip-lbl{
   font-size:0.48rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
   color:var(--muted);flex-shrink:0;
@@ -315,7 +315,49 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .mood-btn.sel-4 .mood-num,.mood-btn.sel-4 .mood-word-sm{color:#16a34a;}
 .mood-btn.sel-5{background:#ecfdf5;border-color:#6ee7b7;}
 .mood-btn.sel-5 .mood-num,.mood-btn.sel-5 .mood-word-sm{color:#059669;}
-.mood-status{font-size:0.5rem;font-weight:600;color:var(--muted);letter-spacing:0.04em;flex-shrink:0;min-width:32px;text-align:right;}
+.mood-today{font-size:0.46rem;font-weight:600;color:var(--muted);flex-shrink:0;text-align:right;line-height:1.5;}
+.mood-today strong{font-size:0.6rem;}
+
+/* Mood note input (appears after tapping a number) */
+.mood-note-row{display:flex;gap:6px;align-items:center;margin-top:8px;animation:fadeIn 0.2s ease;}
+.mood-note-input{
+  flex:1;font-family:'Inter',sans-serif;font-size:0.75rem;
+  padding:7px 14px;border:1.5px solid var(--border);border-radius:999px;
+  background:#fff;color:var(--ink);outline:none;transition:border-color 0.2s;
+}
+.mood-note-input:focus{border-color:#6ee7b7;}
+.mood-log-btn{
+  font-size:0.58rem;font-weight:700;padding:7px 14px;white-space:nowrap;
+  background:#059669;color:#fff;border:none;border-radius:999px;
+  cursor:pointer;font-family:'Inter',sans-serif;flex-shrink:0;
+}
+.mood-cancel-btn{
+  font-size:0.7rem;padding:6px 8px;background:none;
+  border:1.5px solid var(--border);border-radius:999px;
+  cursor:pointer;color:var(--muted);font-family:'Inter',sans-serif;flex-shrink:0;line-height:1;
+}
+
+/* Day review card */
+.day-review-card{
+  background:#fff;border:1.5px solid var(--triumph-border);
+  border-radius:12px;padding:18px;margin-bottom:16px;
+  box-shadow:0 2px 8px var(--shadow);
+}
+.day-review-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.day-review-title{font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--triumph);}
+.day-review-btn{
+  font-size:0.58rem;font-weight:700;padding:7px 14px;
+  background:var(--triumph);color:#fff;border:none;border-radius:999px;
+  cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;
+}
+.day-review-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.day-review-mood-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.day-review-mood-dot{
+  font-size:0.56rem;font-weight:500;padding:3px 10px;border-radius:999px;
+  border:1.5px solid var(--border);color:var(--muted);background:#fafafa;
+}
+.day-review-text{font-size:0.9rem;line-height:1.75;color:var(--ink);white-space:pre-wrap;}
+.day-review-loading{font-size:0.68rem;color:var(--muted);letter-spacing:0.05em;}
 
 /* ── Test tab Win/Loss ── */
 .outcome-hdr{
