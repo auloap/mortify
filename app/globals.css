@@ -154,6 +154,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.6;}
 .emo-summary{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;align-items:center;}
 .emo-pill{font-size:0.58rem;font-weight:500;padding:4px 10px;border-radius:999px;color:white;cursor:pointer;border:none;}
 .emo-clear{font-size:0.58rem;color:var(--muted);background:none;border:1.5px solid var(--border);padding:4px 10px;cursor:pointer;border-radius:999px;}
+.emo-expand-btn{width:100%;margin-top:4px;padding:7px;background:none;border:1.5px dashed var(--border);border-radius:8px;font-size:0.58rem;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;letter-spacing:0.02em;}
+.emo-expand-btn:hover{border-color:#aaa;color:var(--ink);}
 
 /* ── Stats (More tab) ── */
 .stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px;}

@@ -157,6 +157,8 @@ function getAnalytics(textEntries: TextEntry[], testEntries: TestEntry[]) {
 
 // ── EmoPicker ──────────────────────────────────────────────────────────────
 
+const EMO_DEFAULT_VISIBLE = 4;
+
 function EmoPicker({ selected, openGroups, onToggle, onToggleGroup, onClear }: {
   selected: string[];
   openGroups: Record<string, boolean>;
@@ -164,11 +166,18 @@ function EmoPicker({ selected, openGroups, onToggle, onToggleGroup, onClear }: {
   onToggleGroup: (f: string) => void;
   onClear: () => void;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleGroups = showAll ? EMOTION_GROUPS : EMOTION_GROUPS.slice(0, EMO_DEFAULT_VISIBLE);
+  const hiddenCount = EMOTION_GROUPS.length - EMO_DEFAULT_VISIBLE;
+  const hiddenSelected = selected.filter(em =>
+    EMOTION_GROUPS.slice(EMO_DEFAULT_VISIBLE).some(g => g.emotions.includes(em))
+  ).length;
+
   return (
     <div className="form-row">
       <label>Emotional state at the time</label>
       <div className="emo-groups">
-        {EMOTION_GROUPS.map(g => {
+        {visibleGroups.map(g => {
           const selCount = g.emotions.filter(e => selected.includes(e)).length;
           const isOpen = openGroups[g.family];
           return (
@@ -196,6 +205,11 @@ function EmoPicker({ selected, openGroups, onToggle, onToggleGroup, onClear }: {
             </div>
           );
         })}
+        <button className="emo-expand-btn" onClick={() => setShowAll(v => !v)}>
+          {showAll
+            ? "Show less ▲"
+            : `${hiddenCount} more categories${hiddenSelected > 0 ? ` · ${hiddenSelected} selected` : ""} ▼`}
+        </button>
       </div>
       {selected.length > 0 && (
         <div className="emo-summary">
