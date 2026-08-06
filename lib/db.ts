@@ -172,7 +172,7 @@ export async function ensureTables(userId?: string) {
   }
 }
 
-async function claimLegacyData(sql: ReturnType<typeof neon>, userId: string) {
+async function claimLegacyData(sql: ReturnType<typeof getSql>, userId: string) {
   const claimed = await sql`SELECT 1 FROM app_flags WHERE key = 'legacy_claimed'`;
   if (claimed.length > 0) return;
 
@@ -182,7 +182,7 @@ async function claimLegacyData(sql: ReturnType<typeof neon>, userId: string) {
   await sql`INSERT INTO app_flags (key, value) VALUES ('legacy_claimed', ${userId}) ON CONFLICT (key) DO NOTHING`;
 }
 
-async function seedDefaultGoalsForUser(sql: ReturnType<typeof neon>, userId: string) {
+async function seedDefaultGoalsForUser(sql: ReturnType<typeof getSql>, userId: string) {
   const existing = await sql`
     SELECT 1 FROM triumph_goals WHERE "userId" = ${userId} AND "autoTab" IN ('text', 'treat', 'task')
   `;
