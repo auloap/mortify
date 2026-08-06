@@ -1,24 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildDayReviewSystem, buildDayReviewUserMessage } from "@/lib/buildSystemPrompt";
 
 const client = new Anthropic();
 
-export async function POST() {
-  await ensureTables();
+export async function POST(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
 
   const today = new Date().toISOString().slice(0, 10);
 
   const [moods, sins, qts, treats, tasks, wins, profile] = await Promise.all([
-    sql`SELECT * FROM mood_entries WHERE date = ${today} ORDER BY "loggedAt" ASC`,
-    sql`SELECT * FROM sin_entries WHERE date LIKE ${today + "%"} ORDER BY date ASC`,
-    sql`SELECT * FROM qt_entries WHERE date LIKE ${today + "%"} ORDER BY date ASC`,
-    sql`SELECT * FROM treat_entries WHERE date LIKE ${today + "%"} ORDER BY date ASC`,
-    sql`SELECT * FROM task_entries WHERE date LIKE ${today + "%"} ORDER BY date ASC`,
-    sql`SELECT * FROM triumph_wins WHERE date = ${today} ORDER BY "createdAt" ASC`,
-    sql`SELECT * FROM user_profile LIMIT 1`,
+    sql`SELECT * FROM mood_entries WHERE "userId" = ${userId} AND date = ${today} ORDER BY "loggedAt" ASC`,
+    sql`SELECT * FROM sin_entries WHERE "userId" = ${userId} AND date LIKE ${today + "%"} ORDER BY date ASC`,
+    sql`SELECT * FROM qt_entries WHERE "userId" = ${userId} AND date LIKE ${today + "%"} ORDER BY date ASC`,
+    sql`SELECT * FROM treat_entries WHERE "userId" = ${userId} AND date LIKE ${today + "%"} ORDER BY date ASC`,
+    sql`SELECT * FROM task_entries WHERE "userId" = ${userId} AND date LIKE ${today + "%"} ORDER BY date ASC`,
+    sql`SELECT * FROM triumph_wins WHERE "userId" = ${userId} AND date = ${today} ORDER BY "createdAt" ASC`,
+    sql`SELECT * FROM user_profile WHERE "userId" = ${userId} LIMIT 1`,
   ]);
 
   if (moods.length === 0 && sins.length === 0 && qts.length === 0 && treats.length === 0) {

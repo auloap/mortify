@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
 
-export async function GET() {
-  await ensureTables();
+export async function GET(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
-  const rows = await sql`SELECT * FROM task_entries ORDER BY date DESC`;
+  const rows = await sql`SELECT * FROM task_entries WHERE "userId" = ${userId} ORDER BY date DESC`;
   return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
+  const userId = getUserId(req);
   const body = await req.json();
   const { task, obstacle } = body;
   if (!task) return NextResponse.json({ error: "task is required" }, { status: 400 });
@@ -41,12 +44,12 @@ Tone: encouraging but not cheesy. Speak to the heart of someone who genuinely wa
     aiReflection = `Could not reach AI. (${err instanceof Error ? err.message : "Unknown error"})`;
   }
 
-  await ensureTables();
+  await ensureTables(userId);
   const sql = getSql();
   const date = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO task_entries (date, task, obstacle, "aiReflection")
-    VALUES (${date}, ${task}, ${obstacle ?? ""}, ${aiReflection})
+    INSERT INTO task_entries (date, task, obstacle, "aiReflection", "userId")
+    VALUES (${date}, ${task}, ${obstacle ?? ""}, ${aiReflection}, ${userId})
     RETURNING *
   `;
   return NextResponse.json(rows[0]);

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const userId = getUserId(req);
   const { id } = await params;
   const sql = getSql();
-  await sql`DELETE FROM task_entries WHERE id = ${Number(id)}`;
+  await sql`DELETE FROM task_entries WHERE id = ${Number(id)} AND "userId" = ${userId}`;
   return NextResponse.json({ ok: true });
 }

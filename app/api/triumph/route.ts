@@ -1,18 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 
-export async function GET() {
-  await ensureTables();
+export async function GET(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
 
   const [goals, doLogs, resistLogs, wins, textDates, treatDates, taskDates] = await Promise.all([
-    sql`SELECT * FROM triumph_goals ORDER BY "createdAt" ASC`,
-    sql`SELECT * FROM triumph_do_logs ORDER BY "loggedAt" DESC`,
-    sql`SELECT * FROM triumph_resist_logs ORDER BY "loggedAt" DESC`,
-    sql`SELECT * FROM triumph_wins ORDER BY "createdAt" DESC`,
-    sql`SELECT date FROM qt_entries`,
-    sql`SELECT date FROM treat_entries`,
-    sql`SELECT date FROM task_entries`,
+    sql`SELECT * FROM triumph_goals WHERE "userId" = ${userId} ORDER BY "createdAt" ASC`,
+    sql`SELECT * FROM triumph_do_logs WHERE "userId" = ${userId} ORDER BY "loggedAt" DESC`,
+    sql`SELECT * FROM triumph_resist_logs WHERE "userId" = ${userId} ORDER BY "loggedAt" DESC`,
+    sql`SELECT * FROM triumph_wins WHERE "userId" = ${userId} ORDER BY "createdAt" DESC`,
+    sql`SELECT date FROM qt_entries WHERE "userId" = ${userId}`,
+    sql`SELECT date FROM treat_entries WHERE "userId" = ${userId}`,
+    sql`SELECT date FROM task_entries WHERE "userId" = ${userId}`,
   ]);
 
   return NextResponse.json({

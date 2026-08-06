@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, CSSProperties } from "react";
+import { tgFetch } from "@/lib/telegramFetch";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -340,7 +341,7 @@ function TreatTab({ onSaved }: { onSaved: (e: TreatEntry) => void }) {
     if (!gratitude.trim() || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await fetch("/api/treat", {
+      const res = await tgFetch("/api/treat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gratitude }),
       });
@@ -390,7 +391,7 @@ function TextTab({ onSaved }: { onSaved: (e: TextEntry) => void }) {
     if (!book || !aboutGod || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await fetch("/api/qt", {
+      const res = await tgFetch("/api/qt", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ book, passage, aboutGod, aboutSelf, apply, prayer }),
       });
@@ -460,7 +461,7 @@ function TaskTab({ onSaved }: { onSaved: (e: TaskEntry) => void }) {
     if (!task.trim() || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await fetch("/api/task", {
+      const res = await tgFetch("/api/task", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task, obstacle }),
       });
@@ -558,7 +559,7 @@ function TestTab({ onSaved, prefill, onClearPrefill, moodEnergy }: {
     setBusy(true); setAiVictory(""); setAiReflection(""); setAiPivot("");
     const resolvedSin = sin === "Other" ? (custom || "Other") : sin;
     try {
-      const res = await fetch("/api/sin", {
+      const res = await tgFetch("/api/sin", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sin: resolvedSin, emotions, situation, outcome,
@@ -810,7 +811,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
 
   async function toggleDo(goal: TriumphGoal) {
     if (goal.autoTab) return; // auto goals can't be toggled manually
-    const res = await fetch("/api/triumph/do-log", {
+    const res = await tgFetch("/api/triumph/do-log", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ goalId: goal.id }),
     });
@@ -827,14 +828,14 @@ function TriumphTab({ data, onDataChange, onFell }: {
   async function logResist(goal: TriumphGoal, outcome: "won" | "skip" | "fell") {
     if (outcome === "fell") {
       // Log it then redirect to Test tab
-      await fetch("/api/triumph/resist-log", {
+      await tgFetch("/api/triumph/resist-log", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goalId: goal.id, outcome }),
       });
       onFell(goal.linkedSin || "Other", goal.name);
       return;
     }
-    const res = await fetch("/api/triumph/resist-log", {
+    const res = await tgFetch("/api/triumph/resist-log", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ goalId: goal.id, outcome }),
     });
@@ -846,7 +847,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
   async function addGoal() {
     if (!goalName.trim() || savingGoal) return;
     setSavingGoal(true);
-    const res = await fetch("/api/triumph/goals", {
+    const res = await tgFetch("/api/triumph/goals", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: goalName, type: addType, icon: goalIcon, linkedSin }),
     });
@@ -858,7 +859,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
   }
 
   async function delGoal(id: number) {
-    await fetch(`/api/triumph/goals/${id}`, { method: "DELETE" });
+    await tgFetch(`/api/triumph/goals/${id}`, { method: "DELETE" });
     onDataChange({
       ...data,
       goals: data.goals.filter(g => g.id !== id),
@@ -870,7 +871,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
   async function addWin() {
     if (!winText.trim() || savingWin) return;
     setSavingWin(true);
-    const res = await fetch("/api/triumph/wins", {
+    const res = await tgFetch("/api/triumph/wins", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: winText }),
     });
@@ -882,7 +883,7 @@ function TriumphTab({ data, onDataChange, onFell }: {
   }
 
   async function delWin(id: number) {
-    await fetch(`/api/triumph/wins/${id}`, { method: "DELETE" });
+    await tgFetch(`/api/triumph/wins/${id}`, { method: "DELETE" });
     onDataChange({ ...data, wins: data.wins.filter(w => w.id !== id) });
   }
 
@@ -1166,7 +1167,7 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, moodEntr
   async function getDayReview() {
     setReviewBusy(true); setDayReview("");
     try {
-      const res = await fetch("/api/mood/summary", { method: "POST" });
+      const res = await tgFetch("/api/mood/summary", { method: "POST" });
       const json = await res.json();
       setDayReview(json.aiSummary || "No summary returned.");
     } catch { setDayReview("Could not reach AI. Please try again."); }
@@ -1374,12 +1375,12 @@ export default function WTTTApp() {
 
   const load = useCallback(async () => {
     const [treat, text, task, test, triumph, mood] = await Promise.all([
-      fetch("/api/treat").then(r => r.json()),
-      fetch("/api/qt").then(r => r.json()),
-      fetch("/api/task").then(r => r.json()),
-      fetch("/api/sin").then(r => r.json()),
-      fetch("/api/triumph").then(r => r.json()),
-      fetch("/api/mood").then(r => r.json()),
+      tgFetch("/api/treat").then(r => r.json()),
+      tgFetch("/api/qt").then(r => r.json()),
+      tgFetch("/api/task").then(r => r.json()),
+      tgFetch("/api/sin").then(r => r.json()),
+      tgFetch("/api/triumph").then(r => r.json()),
+      tgFetch("/api/mood").then(r => r.json()),
     ]);
     setTreatEntries(treat);
     setTextEntries(text);
@@ -1390,7 +1391,7 @@ export default function WTTTApp() {
   }, []);
 
   async function logMood(energy: number, note: string) {
-    const res = await fetch("/api/mood", {
+    const res = await tgFetch("/api/mood", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ energy, note }),
     });
@@ -1402,8 +1403,16 @@ export default function WTTTApp() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void } } }).Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+  }, []);
+
   async function del(endpoint: string, id: number) {
-    await fetch(`${endpoint}/${id}`, { method: "DELETE" });
+    await tgFetch(`${endpoint}/${id}`, { method: "DELETE" });
   }
 
   const { streak, strongholds, winRate, totalTests } = getAnalytics(textEntries, testEntries);

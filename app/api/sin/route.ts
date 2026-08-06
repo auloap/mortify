@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import {
   buildMortificationSystem,
@@ -13,10 +14,11 @@ import {
 
 const client = new Anthropic();
 
-export async function GET() {
-  await ensureTables();
+export async function GET(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
-  const rows = await sql`SELECT * FROM sin_entries ORDER BY date DESC`;
+  const rows = await sql`SELECT * FROM sin_entries WHERE "userId" = ${userId} ORDER BY date DESC`;
   return NextResponse.json(
     rows.map((r) => ({
       ...r,
@@ -29,6 +31,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const userId = getUserId(req);
   const body = await req.json();
   const {
     sin,
@@ -52,14 +55,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "sin is required" }, { status: 400 });
   }
 
-  await ensureTables();
+  await ensureTables(userId);
   const sql = getSql();
 
   // Fetch profile and today's sin count in parallel
   const today = new Date().toISOString().slice(0, 10);
   const [profileRows, todayRows] = await Promise.all([
-    sql`SELECT * FROM user_profile LIMIT 1`,
-    sql`SELECT COUNT(*) as count FROM sin_entries WHERE date LIKE ${today + "%"}`,
+    sql`SELECT * FROM user_profile WHERE "userId" = ${userId} LIMIT 1`,
+    sql`SELECT COUNT(*) as count FROM sin_entries WHERE "userId" = ${userId} AND date LIKE ${today + "%"}`,
   ]);
 
   const profile: UserProfile = profileRows.length > 0
@@ -128,13 +131,13 @@ export async function POST(req: NextRequest) {
       date, sin, emotions, situation, counterfeit, "postMortem", journal,
       "aiReflection", "aiPivot",
       "pulseEnergy", "pulseFeelings", "pulseContexts",
-      outcome, "whatHelped", "howFeeling", "aiVictory"
+      outcome, "whatHelped", "howFeeling", "aiVictory", "userId"
     )
     VALUES (
       ${date}, ${sin}, ${JSON.stringify(emotions)}, ${situation ?? ""}, ${counterfeit ?? ""}, ${postMortem ?? ""}, ${journal ?? ""},
       ${aiReflection}, ${aiPivot},
       ${pulseEnergy ?? null}, ${JSON.stringify(pulseFeelings)}, ${JSON.stringify(pulseContexts)},
-      ${outcome}, ${whatHelped ?? ""}, ${JSON.stringify(howFeeling)}, ${aiVictory}
+      ${outcome}, ${whatHelped ?? ""}, ${JSON.stringify(howFeeling)}, ${aiVictory}, ${userId}
     )
     RETURNING *
   `;

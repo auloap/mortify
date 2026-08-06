@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildQTSystem, buildQTUserMessage, UserProfile } from "@/lib/buildSystemPrompt";
 
 const client = new Anthropic();
 
-export async function GET() {
-  await ensureTables();
+export async function GET(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
-  const rows = await sql`SELECT * FROM qt_entries ORDER BY date DESC`;
+  const rows = await sql`SELECT * FROM qt_entries WHERE "userId" = ${userId} ORDER BY date DESC`;
   return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
+  const userId = getUserId(req);
   const body = await req.json();
   const { book, passage, aboutGod, aboutSelf, apply, prayer } = body;
 
@@ -20,10 +23,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "book and aboutGod are required" }, { status: 400 });
   }
 
-  await ensureTables();
+  await ensureTables(userId);
   const sql = getSql();
 
-  const profileRows = await sql`SELECT * FROM user_profile LIMIT 1`;
+  const profileRows = await sql`SELECT * FROM user_profile WHERE "userId" = ${userId} LIMIT 1`;
   const profile: UserProfile = profileRows.length > 0
     ? { enneagramType: profileRows[0].enneagramType as UserProfile["enneagramType"], wing: profileRows[0].wing as number | null }
     : { enneagramType: null, wing: null };
@@ -45,8 +48,8 @@ export async function POST(req: NextRequest) {
 
   const date = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO qt_entries (date, book, passage, "aboutGod", "aboutSelf", apply, prayer, "aiReflection")
-    VALUES (${date}, ${book}, ${passage ?? ""}, ${aboutGod}, ${aboutSelf ?? ""}, ${apply ?? ""}, ${prayer ?? ""}, ${aiReflection})
+    INSERT INTO qt_entries (date, book, passage, "aboutGod", "aboutSelf", apply, prayer, "aiReflection", "userId")
+    VALUES (${date}, ${book}, ${passage ?? ""}, ${aboutGod}, ${aboutSelf ?? ""}, ${apply ?? ""}, ${prayer ?? ""}, ${aiReflection}, ${userId})
     RETURNING *
   `;
   return NextResponse.json(rows[0]);

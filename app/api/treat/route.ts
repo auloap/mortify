@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql, ensureTables } from "@/lib/db";
+import { getUserId } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
 
-export async function GET() {
-  await ensureTables();
+export async function GET(req: NextRequest) {
+  const userId = getUserId(req);
+  await ensureTables(userId);
   const sql = getSql();
-  const rows = await sql`SELECT * FROM treat_entries ORDER BY date DESC`;
+  const rows = await sql`SELECT * FROM treat_entries WHERE "userId" = ${userId} ORDER BY date DESC`;
   return NextResponse.json(rows);
 }
 
 export async function POST(req: NextRequest) {
+  const userId = getUserId(req);
   const body = await req.json();
   const { gratitude } = body;
   if (!gratitude) return NextResponse.json({ error: "gratitude is required" }, { status: 400 });
@@ -41,12 +44,12 @@ Tone: warm, joyful, worshipful. Help them see the Giver behind the gifts.`,
     aiReflection = `Could not reach AI. (${err instanceof Error ? err.message : "Unknown error"})`;
   }
 
-  await ensureTables();
+  await ensureTables(userId);
   const sql = getSql();
   const date = new Date().toISOString();
   const rows = await sql`
-    INSERT INTO treat_entries (date, gratitude, "aiReflection")
-    VALUES (${date}, ${gratitude}, ${aiReflection})
+    INSERT INTO treat_entries (date, gratitude, "aiReflection", "userId")
+    VALUES (${date}, ${gratitude}, ${aiReflection}, ${userId})
     RETURNING *
   `;
   return NextResponse.json(rows[0]);

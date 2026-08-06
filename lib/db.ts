@@ -4,7 +4,20 @@ export function getSql() {
   return neon(process.env.DATABASE_URL!);
 }
 
-export async function ensureTables() {
+const USER_TABLES = [
+  "qt_entries",
+  "sin_entries",
+  "user_profile",
+  "treat_entries",
+  "task_entries",
+  "mood_entries",
+  "triumph_goals",
+  "triumph_do_logs",
+  "triumph_resist_logs",
+  "triumph_wins",
+];
+
+export async function ensureTables(userId?: string) {
   const sql = getSql();
   await sql`
     CREATE TABLE IF NOT EXISTS qt_entries (
@@ -127,6 +140,21 @@ export async function ensureTables() {
     )
   `;
 
+  // ── Per-user data isolation ──────────────────────────────────────────────
+  // Every user-data table gets a userId column. Existing rows default to
+  // 'legacy' and get claimed by the first real Telegram user to show up
+  // (see claimLegacyData below).
+  await sql`ALTER TABLE qt_entries ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE sin_entries ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE treat_entries ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE task_entries ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE mood_entries ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE triumph_goals ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE triumph_do_logs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE triumph_resist_logs ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+  await sql`ALTER TABLE triumph_wins ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL DEFAULT 'legacy'`;
+
   // Deduplicate: if old + new seeds both ran, keep only the earliest row per autoTab
   await sql`
     DELETE FROM triumph_goals
@@ -134,34 +162,43 @@ export async function ensureTables() {
       AND id NOT IN (
         SELECT MIN(id) FROM triumph_goals
         WHERE "autoTab" IN ('text', 'treat', 'task')
-        GROUP BY "autoTab"
+        GROUP BY "autoTab", "userId"
       )
   `;
 
-  // If default goals already exist (any seed path), mark seeded so we never re-insert
-  await sql`
-    INSERT INTO app_flags (key, value)
-    SELECT 'triumph_defaults_seeded', 'true'
-    WHERE EXISTS (SELECT 1 FROM triumph_goals WHERE "autoTab" IN ('text', 'treat', 'task'))
-    ON CONFLICT (key) DO NOTHING
-  `;
-
-  // Only seed on a truly fresh install (no defaults and no flag)
-  const flagCheck = await sql`SELECT 1 FROM app_flags WHERE key = 'triumph_defaults_seeded'`;
-  if (flagCheck.length === 0) {
-    const now = new Date().toISOString();
-    await sql`
-      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-      VALUES ('Text', 'do', '📖', '', 'text', true, ${now})
-    `;
-    await sql`
-      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-      VALUES ('Treat', 'do', '🌿', '', 'treat', true, ${now})
-    `;
-    await sql`
-      INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt")
-      VALUES ('Task', 'do', '✦', '', 'task', true, ${now})
-    `;
-    await sql`INSERT INTO app_flags (key, value) VALUES ('triumph_defaults_seeded', 'true')`;
+  if (userId && userId !== "legacy" && userId !== "local-dev") {
+    await claimLegacyData(sql, userId);
+    await seedDefaultGoalsForUser(sql, userId);
   }
+}
+
+async function claimLegacyData(sql: ReturnType<typeof neon>, userId: string) {
+  const claimed = await sql`SELECT 1 FROM app_flags WHERE key = 'legacy_claimed'`;
+  if (claimed.length > 0) return;
+
+  for (const table of USER_TABLES) {
+    await sql.query(`UPDATE ${table} SET "userId" = $1 WHERE "userId" = 'legacy'`, [userId]);
+  }
+  await sql`INSERT INTO app_flags (key, value) VALUES ('legacy_claimed', ${userId}) ON CONFLICT (key) DO NOTHING`;
+}
+
+async function seedDefaultGoalsForUser(sql: ReturnType<typeof neon>, userId: string) {
+  const existing = await sql`
+    SELECT 1 FROM triumph_goals WHERE "userId" = ${userId} AND "autoTab" IN ('text', 'treat', 'task')
+  `;
+  if (existing.length > 0) return;
+
+  const now = new Date().toISOString();
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt", "userId")
+    VALUES ('Text', 'do', '📖', '', 'text', true, ${now}, ${userId})
+  `;
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt", "userId")
+    VALUES ('Treat', 'do', '🌿', '', 'treat', true, ${now}, ${userId})
+  `;
+  await sql`
+    INSERT INTO triumph_goals (name, type, icon, "linkedSin", "autoTab", "isDefault", "createdAt", "userId")
+    VALUES ('Task', 'do', '✦', '', 'task', true, ${now}, ${userId})
+  `;
 }
