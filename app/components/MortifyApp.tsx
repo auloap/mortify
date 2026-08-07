@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, CSSProperties } from "react";
-import { tgFetch } from "@/lib/telegramFetch";
+import { tgFetch, tgJson } from "@/lib/telegramFetch";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -341,11 +341,10 @@ function TreatTab({ onSaved }: { onSaved: (e: TreatEntry) => void }) {
     if (!gratitude.trim() || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await tgFetch("/api/treat", {
+      const entry = await tgJson<TreatEntry>("/api/treat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gratitude }),
       });
-      const entry: TreatEntry = await res.json();
       setAiText(entry.aiReflection);
       onSaved(entry);
       setGratitude("");
@@ -391,11 +390,10 @@ function TextTab({ onSaved }: { onSaved: (e: TextEntry) => void }) {
     if (!book || !aboutGod || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await tgFetch("/api/qt", {
+      const entry = await tgJson<TextEntry>("/api/qt", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ book, passage, aboutGod, aboutSelf, apply, prayer }),
       });
-      const entry: TextEntry = await res.json();
       setAiText(entry.aiReflection);
       onSaved(entry);
       setBook(""); setPassage(""); setAboutGod(""); setAboutSelf(""); setApply(""); setPrayer("");
@@ -461,11 +459,10 @@ function TaskTab({ onSaved }: { onSaved: (e: TaskEntry) => void }) {
     if (!task.trim() || busy) return;
     setBusy(true); setAiText("");
     try {
-      const res = await tgFetch("/api/task", {
+      const entry = await tgJson<TaskEntry>("/api/task", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task, obstacle }),
       });
-      const entry: TaskEntry = await res.json();
       setAiText(entry.aiReflection);
       onSaved(entry);
       setTask(""); setObstacle("");
@@ -559,7 +556,7 @@ function TestTab({ onSaved, prefill, onClearPrefill, moodEnergy }: {
     setBusy(true); setAiVictory(""); setAiReflection(""); setAiPivot("");
     const resolvedSin = sin === "Other" ? (custom || "Other") : sin;
     try {
-      const res = await tgFetch("/api/sin", {
+      const entry = await tgJson<TestEntry>("/api/sin", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sin: resolvedSin, emotions, situation, outcome,
@@ -570,7 +567,6 @@ function TestTab({ onSaved, prefill, onClearPrefill, moodEnergy }: {
           pulseContexts: [],
         }),
       });
-      const entry: TestEntry = await res.json();
       if (outcome === "won") setAiVictory(entry.aiVictory || "");
       else { setAiReflection(entry.aiReflection); setAiPivot(entry.aiPivot); }
       onSaved(entry);
@@ -811,18 +807,19 @@ function TriumphTab({ data, onDataChange, onFell }: {
 
   async function toggleDo(goal: TriumphGoal) {
     if (goal.autoTab) return; // auto goals can't be toggled manually
-    const res = await tgFetch("/api/triumph/do-log", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goalId: goal.id }),
-    });
-    const json = await res.json();
-    onDataChange({
-      ...data,
-      doLogs: json.toggled
-        ? [...data.doLogs, json.log]
-        : data.doLogs.filter(l => !(l.goalId === goal.id && l.date === today)),
-    });
-    showToast(json.toggled ? "Done! 🔥" : "Unmarked", TAB_COLORS.triumph.color);
+    try {
+      const json = await tgJson<{ toggled: boolean; log: DoLog }>("/api/triumph/do-log", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goalId: goal.id }),
+      });
+      onDataChange({
+        ...data,
+        doLogs: json.toggled
+          ? [...data.doLogs, json.log]
+          : data.doLogs.filter(l => !(l.goalId === goal.id && l.date === today)),
+      });
+      showToast(json.toggled ? "Done! 🔥" : "Unmarked", TAB_COLORS.triumph.color);
+    } catch { showToast("Could not save. Please try again.", "#b94040"); }
   }
 
   async function logResist(goal: TriumphGoal, outcome: "won" | "skip" | "fell") {
@@ -835,26 +832,28 @@ function TriumphTab({ data, onDataChange, onFell }: {
       onFell(goal.linkedSin || "Other", goal.name);
       return;
     }
-    const res = await tgFetch("/api/triumph/resist-log", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ goalId: goal.id, outcome }),
-    });
-    const log: ResistLog = await res.json();
-    onDataChange({ ...data, resistLogs: [...data.resistLogs, log] });
-    showToast(outcome === "won" ? "Victory logged! 🏆" : "Skipped ·", TAB_COLORS.triumph.color);
+    try {
+      const log = await tgJson<ResistLog>("/api/triumph/resist-log", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goalId: goal.id, outcome }),
+      });
+      onDataChange({ ...data, resistLogs: [...data.resistLogs, log] });
+      showToast(outcome === "won" ? "Victory logged! 🏆" : "Skipped ·", TAB_COLORS.triumph.color);
+    } catch { showToast("Could not save. Please try again.", "#b94040"); }
   }
 
   async function addGoal() {
     if (!goalName.trim() || savingGoal) return;
     setSavingGoal(true);
-    const res = await tgFetch("/api/triumph/goals", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: goalName, type: addType, icon: goalIcon, linkedSin }),
-    });
-    const goal: TriumphGoal = await res.json();
-    onDataChange({ ...data, goals: [...data.goals, goal] });
-    setGoalName(""); setGoalIcon("🎯"); setLinkedSin(""); setShowAddGoal(false);
-    showToast("Goal added 🎯", TAB_COLORS.triumph.color);
+    try {
+      const goal = await tgJson<TriumphGoal>("/api/triumph/goals", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: goalName, type: addType, icon: goalIcon, linkedSin }),
+      });
+      onDataChange({ ...data, goals: [...data.goals, goal] });
+      setGoalName(""); setGoalIcon("🎯"); setLinkedSin(""); setShowAddGoal(false);
+      showToast("Goal added 🎯", TAB_COLORS.triumph.color);
+    } catch { showToast("Could not save. Please try again.", "#b94040"); }
     setSavingGoal(false);
   }
 
@@ -871,14 +870,15 @@ function TriumphTab({ data, onDataChange, onFell }: {
   async function addWin() {
     if (!winText.trim() || savingWin) return;
     setSavingWin(true);
-    const res = await tgFetch("/api/triumph/wins", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: winText }),
-    });
-    const win: TriumphWin = await res.json();
-    onDataChange({ ...data, wins: [win, ...data.wins] });
-    setWinText(""); setShowAddWin(false);
-    showToast("Win recorded! ⭐", TAB_COLORS.triumph.color);
+    try {
+      const win = await tgJson<TriumphWin>("/api/triumph/wins", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: winText }),
+      });
+      onDataChange({ ...data, wins: [win, ...data.wins] });
+      setWinText(""); setShowAddWin(false);
+      showToast("Win recorded! ⭐", TAB_COLORS.triumph.color);
+    } catch { showToast("Could not save. Please try again.", "#b94040"); }
     setSavingWin(false);
   }
 
@@ -1167,8 +1167,7 @@ function MoreTab({ treatEntries, textEntries, taskEntries, testEntries, moodEntr
   async function getDayReview() {
     setReviewBusy(true); setDayReview("");
     try {
-      const res = await tgFetch("/api/mood/summary", { method: "POST" });
-      const json = await res.json();
+      const json = await tgJson<{ aiSummary?: string }>("/api/mood/summary", { method: "POST" });
       setDayReview(json.aiSummary || "No summary returned.");
     } catch { setDayReview("Could not reach AI. Please try again."); }
     setReviewBusy(false);
@@ -1413,14 +1412,15 @@ export default function WTTTApp() {
   }, []);
 
   async function logMood(energy: number, note: string) {
-    const res = await tgFetch("/api/mood", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ energy, note }),
-    });
-    const entry: MoodEntry = await res.json();
-    setMoodEntries(p => [entry, ...p]);
-    setPendingMood(null); setMoodNote("");
-    showToast(`Mood logged — ${ENERGY_WORDS[energy]}`, "#059669");
+    try {
+      const entry = await tgJson<MoodEntry>("/api/mood", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ energy, note }),
+      });
+      setMoodEntries(p => [entry, ...p]);
+      setPendingMood(null); setMoodNote("");
+      showToast(`Mood logged — ${ENERGY_WORDS[energy]}`, "#059669");
+    } catch { showToast("Could not save. Please try again.", "#b94040"); }
   }
 
   useEffect(() => { load(); }, [load]);
