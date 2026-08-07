@@ -1374,14 +1374,36 @@ export default function WTTTApp() {
   const [moodNote,     setMoodNote]     = useState("");
 
   const load = useCallback(async () => {
-    const [treat, text, task, test, triumph, mood] = await Promise.all([
-      tgFetch("/api/treat").then(r => r.json()),
-      tgFetch("/api/qt").then(r => r.json()),
-      tgFetch("/api/task").then(r => r.json()),
-      tgFetch("/api/sin").then(r => r.json()),
-      tgFetch("/api/triumph").then(r => r.json()),
-      tgFetch("/api/mood").then(r => r.json()),
+    // A failed request returns an error object, not a list — coercing it into
+    // state would blow up the render on .map() and take the whole app down.
+    async function fetchList<T>(url: string): Promise<T[]> {
+      try {
+        const res = await tgFetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    }
+
+    const [treat, text, task, test, mood] = await Promise.all([
+      fetchList<TreatEntry>("/api/treat"),
+      fetchList<TextEntry>("/api/qt"),
+      fetchList<TaskEntry>("/api/task"),
+      fetchList<TestEntry>("/api/sin"),
+      fetchList<MoodEntry>("/api/mood"),
     ]);
+
+    let triumph: TriumphData = EMPTY_TRIUMPH;
+    try {
+      const res = await tgFetch("/api/triumph");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.goals)) triumph = data;
+      }
+    } catch {}
+
     setTreatEntries(treat);
     setTextEntries(text);
     setTaskEntries(task);

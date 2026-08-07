@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({
@@ -25,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+        {/* Must be a plain blocking script: window.Telegram.WebApp.initData has to
+            exist before React hydrates, or the first API calls go out unauthenticated. */}
+        <script src="https://telegram.org/js/telegram-web-app.js" />
       </head>
       <body className="h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
         {children}
