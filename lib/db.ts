@@ -1,7 +1,12 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
+
+let _sql: ReturnType<typeof postgres> | null = null;
 
 export function getSql() {
-  return neon(process.env.DATABASE_URL!);
+  if (!_sql) {
+    _sql = postgres(process.env.DATABASE_URL!, { max: 5 });
+  }
+  return _sql;
 }
 
 const USER_TABLES = [
@@ -177,7 +182,7 @@ async function claimLegacyData(sql: ReturnType<typeof getSql>, userId: string) {
   if (claimed.length > 0) return;
 
   for (const table of USER_TABLES) {
-    await sql.query(`UPDATE ${table} SET "userId" = $1 WHERE "userId" = 'legacy'`, [userId]);
+    await sql.unsafe(`UPDATE ${table} SET "userId" = $1 WHERE "userId" = 'legacy'`, [userId]);
   }
   await sql`INSERT INTO app_flags (key, value) VALUES ('legacy_claimed', ${userId}) ON CONFLICT (key) DO NOTHING`;
 }
