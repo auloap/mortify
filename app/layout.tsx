@@ -1,36 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
-  title: "WTTT",
-  description: "What's the Treat, Text, Task & Test today?",
-};
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-  themeColor: "#ffffff",
+  title: "Mortify API",
+  description: "Backend for the Mortify mobile app.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
-      <head>
-        {/* Must be a plain blocking script: window.Telegram.WebApp.initData has to
-            exist before React hydrates, or the first API calls go out unauthenticated. */}
-        <script src="https://telegram.org/js/telegram-web-app.js" />
-      </head>
-      <body className="h-full" style={{ fontFamily: "'Inter', sans-serif" }}>
-        {children}
-      </body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
   );
 }

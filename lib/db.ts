@@ -145,6 +145,24 @@ export async function ensureTables(userId?: string) {
     )
   `;
 
+  // ── Accounts ───────────────────────────────────────────────────────────────
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      "passwordHash" TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "expiresAt" TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL
+    )
+  `;
+
   // ── Per-user data isolation ──────────────────────────────────────────────
   // Every user-data table gets a userId column. Existing rows default to
   // 'legacy' and get claimed by the first real Telegram user to show up
