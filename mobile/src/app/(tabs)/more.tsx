@@ -87,7 +87,7 @@ export default function MoreTab() {
           </View>
         )}
         {reviewBusy && <Text style={s.loading}>Synthesising your day…</Text>}
-        {dayReview && !reviewBusy && <Text style={s.dayReviewText}>{dayReview}</Text>}
+        {!!dayReview && !reviewBusy && <Text style={s.dayReviewText}>{dayReview}</Text>}
         {!dayReview && !reviewBusy && todayMoods.length === 0 && (
           <Text style={s.muted}>Log your mood throughout the day, then get a pastoral summary here.</Text>
         )}

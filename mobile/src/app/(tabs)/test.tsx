@@ -194,7 +194,7 @@ export default function TestTab() {
           <Text style={s.submitText}>{submitLabel}</Text>
         </Pressable>
 
-        {(aiVictory || aiReflection) && (
+        {!!(aiVictory || aiReflection) && (
           <Pressable style={s.againBtn} onPress={reset}>
             <Text style={s.againText}>Log another →</Text>
           </Pressable>
