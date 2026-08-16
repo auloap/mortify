@@ -29,4 +29,7 @@ jobs:
         env:
           ENDPOINT: ${{ inputs.endpoint }}
         run: |
-          curl -sS -X POST --max-time 30 "$ENDPOINT" | python3 -m json.tool
+          code=$(curl -sS -X POST --max-time 30 -o /tmp/resp.txt -w '%{http_code}' "$ENDPOINT" || echo fail)
+          echo "http_status: $code"
+          echo "body_head:"
+          head -c 900 /tmp/resp.txt; echo
