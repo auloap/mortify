@@ -8,6 +8,12 @@ export const config = {
 };
 
 export function middleware(req: NextRequest) {
+  // Maintenance endpoint: takes no user input, reads no user data, and its
+  // effect is hardcoded server-side — safe to leave outside initData auth.
+  if (req.nextUrl.pathname === "/api/admin/refresh-menu") {
+    return NextResponse.next();
+  }
+
   const initData = req.headers.get("x-telegram-init-data") || "";
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
