@@ -1,13 +1,23 @@
 name: Diagnose mini app deployment
 # Manually-triggered probe: reports which UI build each candidate production
-# domain currently serves. Contains no secrets and changes nothing.
+# domain currently serves, and optionally asks the deployed app to re-point
+# the bot's menu button at production. Contains no secrets.
 on:
   workflow_dispatch:
+    inputs:
+      refresh_menu:
+        description: "Also re-point the bot menu button at production"
+        type: boolean
+        default: false
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - name: Refresh bot menu button via deployed app
+        if: ${{ inputs.refresh_menu }}
+        run: |
+          curl -sS -X POST --max-time 30 https://mortify-pi.vercel.app/api/admin/refresh-menu | python3 -m json.tool
       - name: Probe candidate production domains
         run: |
           for d in mortify-pi.vercel.app mortify-auloaps-projects.vercel.app mortify.vercel.app; do
