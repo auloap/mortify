@@ -1,0 +1,22 @@
+name: Diagnose mini app deployment
+# Manually-triggered probe: reports which UI build each candidate production
+# domain currently serves. Contains no secrets and changes nothing.
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe candidate production domains
+        run: |
+          for d in mortify-pi.vercel.app mortify-auloaps-projects.vercel.app mortify.vercel.app; do
+            echo "===================== $d"
+            code=$(curl -sL -o /tmp/page.html -w '%{http_code}' --max-time 20 "https://$d" || echo fail)
+            echo "http_status: $code"
+            echo "title: $(grep -o '<title>[^<]*</title>' /tmp/page.html 2>/dev/null | head -1)"
+            echo "ui_markers:"
+            grep -o 'pnav\|bottom-nav\|Tempted\|Triumph\|Cormorant' /tmp/page.html 2>/dev/null | sort | uniq -c || echo "  none found"
+            echo "vercel_headers:"
+            curl -sI --max-time 20 "https://$d" | grep -i 'x-vercel\|age:\|cache' || true
+          done
