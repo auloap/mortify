@@ -1,32 +1,32 @@
 name: Diagnose mini app deployment
-# Manually-triggered probe: reports which UI build each candidate production
-# domain currently serves, and optionally asks the deployed app to re-point
-# the bot's menu button at production. Contains no secrets.
+# Manually-triggered maintenance probe. Reports which UI build the production
+# domain serves, and can call the app's own maintenance endpoint (on whichever
+# deployment URL is passed in). Contains no secrets — the bot token only ever
+# lives in Vercel's environment, where the app reads it.
 on:
   workflow_dispatch:
     inputs:
-      refresh_menu:
-        description: "Also re-point the bot menu button at production"
-        type: boolean
-        default: false
+      endpoint:
+        description: "Maintenance endpoint URL to POST (e.g. https://<deployment>/api/admin/refresh-menu?set=none)"
+        type: string
+        default: ""
 
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Refresh bot menu button via deployed app
-        if: ${{ inputs.refresh_menu }}
+      - name: Probe production domain
         run: |
-          curl -sS -X POST --max-time 30 https://mortify-pi.vercel.app/api/admin/refresh-menu | python3 -m json.tool
-      - name: Probe candidate production domains
+          echo "===================== mortify-pi.vercel.app"
+          code=$(curl -sL -o /tmp/page.html -w '%{http_code}' --max-time 20 "https://mortify-pi.vercel.app" || echo fail)
+          echo "http_status: $code"
+          echo "title: $(grep -o '<title>[^<]*</title>' /tmp/page.html 2>/dev/null | head -1)"
+          echo "ui_markers:"
+          grep -o 'pnav\|bottom-nav\|Tempted\|Triumph' /tmp/page.html 2>/dev/null | sort | uniq -c || echo "  none found"
+
+      - name: Call maintenance endpoint
+        if: ${{ inputs.endpoint != '' }}
+        env:
+          ENDPOINT: ${{ inputs.endpoint }}
         run: |
-          for d in mortify-pi.vercel.app mortify-auloaps-projects.vercel.app mortify.vercel.app; do
-            echo "===================== $d"
-            code=$(curl -sL -o /tmp/page.html -w '%{http_code}' --max-time 20 "https://$d" || echo fail)
-            echo "http_status: $code"
-            echo "title: $(grep -o '<title>[^<]*</title>' /tmp/page.html 2>/dev/null | head -1)"
-            echo "ui_markers:"
-            grep -o 'pnav\|bottom-nav\|Tempted\|Triumph\|Cormorant' /tmp/page.html 2>/dev/null | sort | uniq -c || echo "  none found"
-            echo "vercel_headers:"
-            curl -sI --max-time 20 "https://$d" | grep -i 'x-vercel\|age:\|cache' || true
-          done
+          curl -sS -X POST --max-time 30 "$ENDPOINT" | python3 -m json.tool
